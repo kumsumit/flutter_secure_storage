@@ -43,7 +43,7 @@ abstract class AppleOptions extends Options {
 
   @override
   Map<String, String> toMap() => <String, String>{
-        'accessibility': describeEnum(_accessibility),
+        'accessibility': _accessibility.name,
         if (_accountName != null) 'accountName': _accountName!,
         if (_groupId != null) 'groupId': _groupId!,
         'synchronizable': '$_synchronizable',

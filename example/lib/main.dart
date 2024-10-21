@@ -210,23 +210,27 @@ class ItemsWidgetState extends State<ItemsWidget> {
         final key = await _displayTextInputDialog(context, item.key);
         final result = await _storage.containsKey(key: key);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Contains Key: $result, key checked: $key'),
             backgroundColor: result ? Colors.green : Colors.red,
           ),
         );
+        }
       case _ItemActions.read:
         if (!context.mounted) return;
         final key = await _displayTextInputDialog(context, item.key);
         final result =
             await _storage.read(key: key, aOptions: _getAndroidOptions());
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        if(context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('value: $result'),
           ),
         );
+        }
     }
   }
 

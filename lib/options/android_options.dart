@@ -69,8 +69,8 @@ class AndroidOptions extends Options {
   Map<String, String> toMap() => <String, String>{
         'encryptedSharedPreferences': '$_encryptedSharedPreferences',
         'resetOnError': '$_resetOnError',
-        'keyCipherAlgorithm': describeEnum(_keyCipherAlgorithm),
-        'storageCipherAlgorithm': describeEnum(_storageCipherAlgorithm),
+        'keyCipherAlgorithm': _keyCipherAlgorithm.name,
+        'storageCipherAlgorithm': _storageCipherAlgorithm.name,
         'sharedPreferencesName': sharedPreferencesName ?? '',
         'preferencesKeyPrefix': preferencesKeyPrefix ?? '',
       };
