@@ -1,180 +1,213 @@
-import 'dart:async';
-import 'dart:io';
-import 'dart:math';
+import 'dart:math' show Random;
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 void main() {
-  runApp(const MaterialApp(home: ItemsWidget()));
+  runApp(const MaterialApp(home: HomePage()));
 }
 
-class ItemsWidget extends StatefulWidget {
-  const ItemsWidget({super.key});
-
-  @override
-  ItemsWidgetState createState() => ItemsWidgetState();
-}
-
-enum _Actions { deleteAll }
+enum _Actions { deleteAll, isProtectedDataAvailable }
 
 enum _ItemActions { delete, edit, containsKey, read }
 
-class ItemsWidgetState extends State<ItemsWidget> {
-  final _storage = const FlutterSecureStorage();
-  final _accountNameController =
-      TextEditingController(text: 'flutter_secure_storage_service');
+/// Homepage of the example app of flutter_secure_storage
+class HomePage extends StatefulWidget {
+  /// Creates an instance of `HomePage`.
+  const HomePage({super.key});
 
-  List<_SecItem> _items = [];
+  @override
+  HomePageState createState() => HomePageState();
+}
+
+/// The `HomePageState` class represents the mutable state for the `HomePage`
+/// widget. It manages the state and behavior of the user interface.
+class HomePageState extends State<HomePage> {
+  late FlutterSecureStorage _storage;
+
+  final TextEditingController _accountNameController =
+      TextEditingController(text: AppleOptions.defaultAccountName);
+
+  final List<_SecItem> _items = [];
+
+  void _initializeFlutterSecureStorage(String accountName) {
+    _storage = FlutterSecureStorage(
+      iOptions: IOSOptions(accountName: accountName),
+      mOptions: MacOsOptions(accountName: accountName),
+    );
+  }
+
+  void _updateAccountName() {
+    if (_accountNameController.text.isEmpty) return;
+
+    _initializeFlutterSecureStorage(_accountNameController.text);
+    _readAll();
+  }
 
   @override
   void initState() {
     super.initState();
-
-    _accountNameController.addListener(() => _readAll());
+    _initializeFlutterSecureStorage(AppleOptions.defaultAccountName);
+    _accountNameController.addListener(_updateAccountName);
     _readAll();
   }
 
+  @override
+  void dispose() {
+    _accountNameController
+      ..removeListener(_updateAccountName)
+      ..dispose();
+
+    super.dispose();
+  }
+
   Future<void> _readAll() async {
-    final all = await _storage.readAll(
-      iOptions: _getIOSOptions(),
-      aOptions: _getAndroidOptions(),
-    );
+    final all = await _storage.readAll();
     setState(() {
-      _items = all.entries
-          .map((entry) => _SecItem(entry.key, entry.value))
-          .toList(growable: false);
+      _items
+        ..clear()
+        ..addAll(all.entries.map((e) => _SecItem(e.key, e.value)))
+        ..sort(
+          (a, b) =>
+              (int.tryParse(a.key) ?? 10).compareTo(int.tryParse(b.key) ?? 11),
+        );
     });
   }
 
   Future<void> _deleteAll() async {
-    await _storage.deleteAll(
-      iOptions: _getIOSOptions(),
-      aOptions: _getAndroidOptions(),
+    await _storage.deleteAll();
+    await _readAll();
+  }
+
+  Future<void> _isProtectedDataAvailable() async {
+    final scaffold = ScaffoldMessenger.of(context);
+    final result = await _storage.isCupertinoProtectedDataAvailable();
+
+    scaffold.showSnackBar(
+      SnackBar(
+        content: Text('Protected data available: $result'),
+        backgroundColor: result != null && result ? Colors.green : Colors.red,
+      ),
     );
-    _readAll();
   }
 
   Future<void> _addNewItem() async {
-    final String key = _randomValue();
-    final String value = _randomValue();
-
     await _storage.write(
-      key: key,
-      value: value,
-      iOptions: _getIOSOptions(),
-      aOptions: _getAndroidOptions(),
+      key: DateTime.timestamp().microsecondsSinceEpoch.toString(),
+      value: _randomValue(),
     );
-    _readAll();
+    await _readAll();
   }
 
-  IOSOptions _getIOSOptions() => IOSOptions(
-        accountName: _getAccountName(),
-      );
-
-  AndroidOptions _getAndroidOptions() => const AndroidOptions(
-        encryptedSharedPreferences: true,
-        // sharedPreferencesName: 'Test2',
-        // preferencesKeyPrefix: 'Test'
-      );
-
-  String? _getAccountName() =>
-      _accountNameController.text.isEmpty ? null : _accountNameController.text;
-
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Plugin example app'),
-          actions: <Widget>[
-            IconButton(
-              key: const Key('add_random'),
-              onPressed: _addNewItem,
-              icon: const Icon(Icons.add),
-            ),
-            PopupMenuButton<_Actions>(
-              key: const Key('popup_menu'),
-              onSelected: (action) {
-                switch (action) {
-                  case _Actions.deleteAll:
-                    _deleteAll();
-                }
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<_Actions>>[
-                const PopupMenuItem(
-                  key: Key('delete_all'),
-                  value: _Actions.deleteAll,
-                  child: Text('Delete all'),
-                ),
-              ],
-            ),
-          ],
-        ),
-        body: Column(
-          children: [
-            if (!kIsWeb && Platform.isIOS)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: TextFormField(
-                  controller: _accountNameController,
-                  decoration:
-                      const InputDecoration(labelText: 'kSecAttrService'),
-                ),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Plugin example app'),
+        actions: <Widget>[
+          IconButton(
+            key: const Key('add_random'),
+            onPressed: _addNewItem,
+            icon: const Icon(Icons.add),
+          ),
+          PopupMenuButton<_Actions>(
+            key: const Key('popup_menu'),
+            onSelected: (action) {
+              switch (action) {
+                case _Actions.deleteAll:
+                  _deleteAll();
+                case _Actions.isProtectedDataAvailable:
+                  _isProtectedDataAvailable();
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<_Actions>>[
+              const PopupMenuItem(
+                key: Key('delete_all'),
+                value: _Actions.deleteAll,
+                child: Text('Delete all'),
               ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _items.length,
-                itemBuilder: (BuildContext context, int index) => ListTile(
-                  trailing: PopupMenuButton(
-                    key: Key('popup_row_$index'),
-                    onSelected: (_ItemActions action) =>
-                        _performAction(action, _items[index], context),
-                    itemBuilder: (BuildContext context) =>
-                        <PopupMenuEntry<_ItemActions>>[
-                      PopupMenuItem(
-                        value: _ItemActions.delete,
-                        child: Text(
-                          'Delete',
-                          key: Key('delete_row_$index'),
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: _ItemActions.edit,
-                        child: Text(
-                          'Edit',
-                          key: Key('edit_row_$index'),
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: _ItemActions.containsKey,
-                        child: Text(
-                          'Contains Key',
-                          key: Key('contains_row_$index'),
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: _ItemActions.read,
-                        child: Text(
-                          'Read',
-                          key: Key('contains_row_$index'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  title: Text(
-                    _items[index].value,
-                    key: Key('title_row_$index'),
-                  ),
-                  subtitle: Text(
-                    _items[index].key,
-                    key: Key('subtitle_row_$index'),
-                  ),
-                ),
+              const PopupMenuItem(
+                key: Key('is_protected_data_available'),
+                value: _Actions.isProtectedDataAvailable,
+                child: Text('IsProtectedDataAvailable'),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          if (!kIsWeb &&
+              (defaultTargetPlatform == TargetPlatform.iOS ||
+                  defaultTargetPlatform == TargetPlatform.macOS))
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextFormField(
+                controller: _accountNameController,
+                decoration: const InputDecoration(labelText: 'kSecAttrService'),
               ),
             ),
-          ],
-        ),
-      );
+          Expanded(
+            child: ListView.builder(
+              itemCount: _items.length,
+              itemBuilder: (BuildContext context, int index) => ListTile(
+                trailing: PopupMenuButton(
+                  key: Key('popup_row_$index'),
+                  onSelected: (_ItemActions action) =>
+                      _performAction(action, _items[index], context),
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<_ItemActions>>[
+                    PopupMenuItem(
+                      value: _ItemActions.delete,
+                      child: Text(
+                        'Delete',
+                        key: Key('delete_row_$index'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _ItemActions.edit,
+                      child: Text(
+                        'Edit',
+                        key: Key('edit_row_$index'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _ItemActions.containsKey,
+                      child: Text(
+                        'Contains Key',
+                        key: Key('contains_row_$index'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _ItemActions.read,
+                      child: Text(
+                        'Read',
+                        key: Key('read_row_$index'),
+                      ),
+                    ),
+                  ],
+                ),
+                leading: const Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [Text('Value'), Text('Key')],
+                ),
+                title: Text(
+                  _items[index].value,
+                  key: Key('value_row_$index'),
+                ),
+                subtitle: Text(
+                  _items[index].key,
+                  key: Key('key_row_$index'),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _performAction(
     _ItemActions action,
@@ -185,52 +218,40 @@ class ItemsWidgetState extends State<ItemsWidget> {
       case _ItemActions.delete:
         await _storage.delete(
           key: item.key,
-          iOptions: _getIOSOptions(),
-          aOptions: _getAndroidOptions(),
         );
-        _readAll();
-
+        await _readAll();
       case _ItemActions.edit:
         if (!context.mounted) return;
         final result = await showDialog<String>(
           context: context,
-          builder: (context) => _EditItemWidget(item.value),
+          builder: (_) => _EditItemWidget(item.value),
         );
         if (result != null) {
           await _storage.write(
             key: item.key,
             value: result,
-            iOptions: _getIOSOptions(),
-            aOptions: _getAndroidOptions(),
           );
-          _readAll();
+          await _readAll();
         }
       case _ItemActions.containsKey:
-        if (!context.mounted) return;
         final key = await _displayTextInputDialog(context, item.key);
         final result = await _storage.containsKey(key: key);
-        if (!mounted) return;
-        if(context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Contains Key: $result, key checked: $key'),
             backgroundColor: result ? Colors.green : Colors.red,
           ),
         );
-        }
       case _ItemActions.read:
-        if (!context.mounted) return;
         final key = await _displayTextInputDialog(context, item.key);
-        final result =
-            await _storage.read(key: key, aOptions: _getAndroidOptions());
-        if (!mounted) return;
-        if(context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+        final result = await _storage.read(key: key);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('value: $result'),
           ),
         );
-        }
     }
   }
 
@@ -238,33 +259,30 @@ class ItemsWidgetState extends State<ItemsWidget> {
     BuildContext context,
     String key,
   ) async {
-    final controller = TextEditingController();
-    controller.text = key;
-    await showDialog(
+    final controller = TextEditingController(text: key);
+    await showDialog<dynamic>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Check if key exists'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-          content: TextField(
-            controller: controller,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Check if key exists'),
+        actions: [
+          TextButton(
+            onPressed: Navigator.of(context).pop,
+            child: const Text('OK'),
           ),
-        );
-      },
+        ],
+        content: TextField(
+          controller: controller,
+          key: const Key('key_field'),
+        ),
+      ),
     );
     return controller.text;
   }
 
   String _randomValue() {
     final rand = Random();
-    final codeUnits = List.generate(20, (index) {
-      return rand.nextInt(26) + 65;
-    });
+    final codeUnits =
+        List<int>.generate(20, (_) => rand.nextInt(26) + 65, growable: false);
 
     return String.fromCharCodes(codeUnits);
   }
@@ -281,7 +299,7 @@ class _EditItemWidget extends StatelessWidget {
     return AlertDialog(
       title: const Text('Edit item'),
       content: TextField(
-        key: const Key('title_field'),
+        key: const Key('value_field'),
         controller: _controller,
         autofocus: true,
       ),
@@ -302,7 +320,7 @@ class _EditItemWidget extends StatelessWidget {
 }
 
 class _SecItem {
-  _SecItem(this.key, this.value);
+  const _SecItem(this.key, this.value);
 
   final String key;
   final String value;

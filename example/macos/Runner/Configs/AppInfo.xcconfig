@@ -11,4 +11,4 @@ PRODUCT_NAME = example
 PRODUCT_BUNDLE_IDENTIFIER = com.itnomads.example
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2021 com.it_nomads. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2024 com.it_nomads. All rights reserved.

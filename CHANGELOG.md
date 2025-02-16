@@ -1,3 +1,95 @@
+## 10.0.0-beta.4
+* [Apple] Merged ios and macos implementation into a new package flutter_secure_storage_darwin
+* [Apple] Refactored code and added missing options
+* [Apple] Added support for swift package manager
+* [Web] Update flutter_secure_storage_platform_interface to be compatible with WASM.
+
+## 10.0.0-beta.3
+* [iOS] Fix delete and deleteAll when synchronizable is set.
+* [iOS] Update migration when value is saved while key already exists with different accessibility option. 
+* [Android] Fix deprecation warning.
+
+## 10.0.0-beta.2
+* [Web] Update flutter_secure_storage_platform_interface to be compatible with WASM.
+
+## 10.0.0-beta.1
+This new major release has some big changes. This plugin requires a minimum dart sdk of 3.3.0 or higher
+and a minimum flutter version of 3.19.0.
+
+[Android]
+- By default, encryptedSharedPreferences will be enabled, and cannot be disabled. If there is still 
+  data saved by previous versions using encryptedSharedPreferences = false, it will be automatically
+  transferred to encryptedSharedPreferences.
+- Migrated from deprecated Jetpack Crypto library to Google Tink Crypto library.
+- Migrated to Android SDK 35
+- Migrated to Java Version 17
+- Minimum Android SDK is changed from 19 to 23.
+- Migrated to new analyzer and clean-up code.
+- Lots of minor code improvements
+
+[iOS]
+- Change minimum iOS version from 9 to 12
+- Use serial queue for execution of iOS keychain operations
+- Migrated to new analyzer and clean-up code.
+
+[Web]
+- Web is now migrated to be compatible with WASM.
+- The parameter useSessionStorage is added to WebOptions, which you can use to save in session storage
+  instead of local storage.
+- Migrated to new analyzer and clean-up code.
+
+[Windows]
+- Migrates to `win32` version 5.5.4 to support Dart 3.4 / Flutter 3.22.0.
+- Migrated to new analyzer and clean-up code.
+
+[Platform Interface]
+- Migrated to new analyzer and clean-up code.
+
+## 9.2.4
+* [Android] Fix errors when building for release by upgrading Tink to 1.9.0.
+* [iOS] Fix delete and deleteAll when synchronizable is set.
+* [iOS] Update migration when value is saved while key already exists with different accessibility option.
+
+## 9.2.3
+* [iOS] Fix for issue #711: The specified item already exists in the keychain.
+* [Linux] Fix json.dump with indentations.
+* [Web] Update web dependency support to support <2.0.0 instead of <1.0.0.
+* [Web] Add wrapKey and wrapKeyIv parameters to webOptions. See readme for more information.
+* [macOS] Added useDataProtectionKeyChain parameter.
+
+## 9.2.2
+[iOS, macOS] Fixed an issue which caused the readAll and deleteAll to not work properly.
+
+## 9.2.1
+* Fix async race condition bug in storage operations.
+* [macOS] Return nil on macOS if key is not found
+
+## 9.2.0
+New Features:
+* [iOS, macOS] Reintroduced isProtectedDataAvailable.
+* Listener functionality via `FlutterSecureStorage().registerListener()`
+
+Bugs Fixed:
+* [iOS] Return nil on iOS read if key is not found
+* [macOS] Also set kSecUseDataProtectionKeychain on read for macos.
+
+## 9.1.1
+Reverts new feature because of breaking changes.
+* [iOS, macOS] Added isProtectedDataAvailable, A boolean value that indicates whether content protection is active.
+
+## 9.1.0
+New Features:
+* [iOS, macOS] Added isProtectedDataAvailable, A boolean value that indicates whether content protection is active.
+
+Improvements:
+* [iOS, macOS] Use accessibility option for all operations
+* [iOS, macOS] Added privacy manifest
+* [iOS] Fixes error when no item exists
+* [Linux] Fixed search with schemas fails in cold keyrings
+* [Linux] Fixed erase called on null
+* [Android] Fixed native Android stacktraces in PlatformExceptions
+* [Android] Fixed exception when reading data after boot
+
 ## 9.0.0
 Breaking changes:
 * [Windows] Migrated to FFI with win32 package.
@@ -72,7 +164,7 @@ These changes will become available in version 6.0.0
 First stable release of flutter_secure_storage for multi-platform!
 Please see all beta release notes for changes.
 
-This first release also fixes several stability issues on Android regarding encrypted shared 
+This first release also fixes several stability issues on Android regarding encrypted shared
 preferences.
 
 ## [5.0.0-beta.5]
@@ -106,7 +198,7 @@ Please read the readme.md for information about every platform.
 
 ## [4.2.0]
 * Remove Strongbox for Android [225](https://github.com/mogol/flutter_secure_storage/pull/225). Thanks [JordyLangen](https://github.com/JordyLangen).
-	
+
 ## [4.1.0]
 * Add support for Linux [185](https://github.com/mogol/flutter_secure_storage/pull/185). Thanks [talhabalaj](https://github.com/talhabalaj)
 * Improve first-time read speed on Android by not creating cipher when key is not present. Thanks [PieterAelse](https://github.com/PieterAelse)
@@ -124,8 +216,8 @@ Please read the readme.md for information about every platform.
 * Fix crash when generating keys in android with RTL locales [#132](https://github.com/mogol/flutter_secure_storage/pull/132) by [iassal](https://github.com/iassal)
 * Fix returning the error as String rather than Exception [#134](https://github.com/mogol/flutter_secure_storage/issues/134) by [wytesk133](https://github.com/wytesk133)s
 * Fix Android crash onDetachedFromEngine when init fails [#144](https://github.com/mogol/flutter_secure_storage/issues/144) by [iassal](https://github.com/iassal)
-* Handle null value at write function [#95](https://github.com/mogol/flutter_secure_storage/issues/95) by [ewertonrp](https://github.com/ewertonrp)    
-*  Add support for containsKey [#139](https://github.com/mogol/flutter_secure_storage/issues/139) by [iassal](https://github.com/iassal)    
+* Handle null value at write function [#95](https://github.com/mogol/flutter_secure_storage/issues/95) by [ewertonrp](https://github.com/ewertonrp)
+*  Add support for containsKey [#139](https://github.com/mogol/flutter_secure_storage/issues/139) by [iassal](https://github.com/iassal)
 
 ## [3.3.3]
 * Fix compatibility with non-AndroidX project. [AndroidX Migration](https://flutter.dev/docs/development/androidx-migration) is recommended.
@@ -144,12 +236,12 @@ Please read the readme.md for information about every platform.
 * Fix crash without [iOSOptions](https://github.com/mogol/flutter_secure_storage/issues/73).
 
 ## [3.3.0]
-* Added groupId for iOS keychain sharing. Thanks [Maleandr](https://github.com/Maleandr). 
-* Fix Gradle version in `gradle-wrapper.properties`. Thanks [blasten](https://github.com/blasten). 
-* Added minimum sdk requirement on AndroidManifest. Thanks [lidongze91](https://github.com/lidongze91). 
+* Added groupId for iOS keychain sharing. Thanks [Maleandr](https://github.com/Maleandr).
+* Fix Gradle version in `gradle-wrapper.properties`. Thanks [blasten](https://github.com/blasten).
+* Added minimum sdk requirement on AndroidManifest. Thanks [lidongze91](https://github.com/lidongze91).
 
 ## [3.2.1]
-* Fix Android 9.0 Pie [KeyStore exception](https://github.com/mogol/flutter_secure_storage/issues/46). 
+* Fix Android 9.0 Pie [KeyStore exception](https://github.com/mogol/flutter_secure_storage/issues/46).
 
 ## [3.2.0]
 * **Breaking change**. Migrate from the deprecated original Android Support Library to AndroidX. This shouldn't result in any functional changes, but it requires any Android apps using this plugin to [also migrate](https://developer.android.com/jetpack/androidx/migrate) if they're using the original support library. Thanks [I-am-original](https://github.com/I-am-original).
@@ -168,10 +260,10 @@ Please read the readme.md for information about every platform.
 * Added `readAll` and `deleteAll`.
 
 ## [3.0.0]
-* **Breaking change**. Changed payloads encryption for Android from RSA to AES, AES secret key is encrypted with RSA. 
+* **Breaking change**. Changed payloads encryption for Android from RSA to AES, AES secret key is encrypted with RSA.
 
 ## [2.0.0]````
-* **Breaking change**. Changed key alias to fix Android 4.4.2 issue. The plugin isn't able to get previous stored data. 
+* **Breaking change**. Changed key alias to fix Android 4.4.2 issue. The plugin isn't able to get previous stored data.
 
 ## [1.0.0]
 * Bump version
