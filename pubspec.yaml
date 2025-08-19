@@ -42,7 +42,7 @@ dependencies:
     git: https://github.com/kumsumit/flutter_secure_storage_web.git
   flutter_secure_storage_windows:
     git: https://github.com/kumsumit/flutter_secure_storage_windows.git
-  meta: ^1.9.1
+  meta: ^1.15.1
 
 dev_dependencies:
   flutter_test:
