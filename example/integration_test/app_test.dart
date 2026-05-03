@@ -4,20 +4,20 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('Secure Storage Tests', () {
-    testWidgets('Add a Random Row', (WidgetTester tester) async {
+    testWidgets('Add a Random Row', (tester) async {
       final pageObject = await _setupHomePage(tester);
       await pageObject.addRandomRow();
       pageObject.verifyRowExists(0);
     });
 
-    testWidgets('Edit a Row Value', (WidgetTester tester) async {
+    testWidgets('Edit a Row Value', (tester) async {
       final pageObject = await _setupHomePage(tester);
       await pageObject.addRandomRow();
       await pageObject.editValue('Updated Row', 0);
       pageObject.verifyValue('Updated Row', 0);
     });
 
-    testWidgets('Delete a Row', (WidgetTester tester) async {
+    testWidgets('Delete a Row', (tester) async {
       final pageObject = await _setupHomePage(tester);
       await pageObject.addRandomRow();
       await pageObject.deleteRow(0);
@@ -25,18 +25,18 @@ void main() {
     });
 
     testWidgets('Check Protected Data Availability',
-        (WidgetTester tester) async {
+        (tester) async {
       final pageObject = await _setupHomePage(tester);
       await pageObject.checkProtectedDataAvailability();
     });
 
-    testWidgets('Contains Key for a Row', (WidgetTester tester) async {
+    testWidgets('Contains Key for a Row', (tester) async {
       final pageObject = await _setupHomePage(tester);
       await pageObject.addRandomRow();
       await pageObject.containsKeyForRow(0, expectedResult: true);
     });
 
-    testWidgets('Read Value for a Row', (WidgetTester tester) async {
+    testWidgets('Read Value for a Row', (tester) async {
       final pageObject = await _setupHomePage(tester);
       await pageObject.addRandomRow();
       await pageObject.editValue('Read Test', 0); // Ensure there's a value
@@ -46,7 +46,7 @@ void main() {
       );
     });
 
-    testWidgets('Add Multiple Rows and Verify', (WidgetTester tester) async {
+    testWidgets('Add Multiple Rows and Verify', (tester) async {
       final pageObject = await _setupHomePage(tester);
       await pageObject.addRandomRow();
       await pageObject.addRandomRow();
@@ -55,7 +55,7 @@ void main() {
         ..verifyRowExists(1);
     });
 
-    testWidgets('Edit Multiple Rows', (WidgetTester tester) async {
+    testWidgets('Edit Multiple Rows', (tester) async {
       final pageObject = await _setupHomePage(tester);
       await pageObject.addRandomRow();
       await pageObject.addRandomRow();
@@ -66,7 +66,7 @@ void main() {
         ..verifyValue('Second Row', 1);
     });
 
-    testWidgets('Delete All Rows', (WidgetTester tester) async {
+    testWidgets('Delete All Rows', (tester) async {
       final pageObject = await _setupHomePage(tester);
       await pageObject.addRandomRow();
       await pageObject.addRandomRow();

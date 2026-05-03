@@ -188,12 +188,12 @@ abstract class AppleOptions extends Options {
 
   @override
   Map<String, String> toMap() => <String, String>{
-        if (accountName != null) 'accountName': accountName!,
-        if (groupId != null) 'groupId': groupId!,
+        'accountName': ?accountName,
+        'groupId': ?groupId,
         if (accessibility != null) 'accessibility': accessibility!.name,
-        if (label != null) 'label': label!,
-        if (description != null) 'description': description!,
-        if (comment != null) 'comment': comment!,
+        'label': ?label,
+        'description': ?description,
+        'comment': ?comment,
         'synchronizable': '$synchronizable',
         if (isInvisible != null) 'isInvisible': '$isInvisible',
         if (isNegative != null) 'isNegative': '$isNegative',
@@ -204,8 +204,7 @@ abstract class AppleOptions extends Options {
         if (resultLimit != null) 'resultLimit': resultLimit!.toString(),
         if (shouldReturnPersistentReference != null)
           'shouldReturnPersistentReference': '$shouldReturnPersistentReference',
-        if (authenticationUIBehavior != null)
-          'authenticationUIBehavior': authenticationUIBehavior!,
+        'authenticationUIBehavior': ?authenticationUIBehavior,
         if (accessControlFlags.isNotEmpty)
           'accessControlFlags':
               accessControlFlags.map((e) => e.name).toList().toString(),

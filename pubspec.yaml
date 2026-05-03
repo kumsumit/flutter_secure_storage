@@ -5,8 +5,8 @@ version: 10.0.0-beta.4
 repository: https://github.com/mogol/flutter_secure_storage/tree/develop/flutter_secure_storage
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
-  flutter: '>=3.19.0'
+  sdk: '>=3.11.0 <4.0.0'
+  flutter: '>=3.41.0'
 
 flutter:
   plugin:
@@ -42,15 +42,15 @@ dependencies:
     git: https://github.com/kumsumit/flutter_secure_storage_web.git
   flutter_secure_storage_windows:
     git: https://github.com/kumsumit/flutter_secure_storage_windows.git
-  meta: ^1.15.1
+  meta: ^1.17.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  mocktail: ^1.0.0
+  mocktail: ^1.0.5
   plugin_platform_interface:
     git: https://github.com/kumsumit/plugin_platform_interface.git
-  very_good_analysis: ^7.0.0
+  very_good_analysis: ^10.2.0
 
 # We need to manually declare supported platforms, because pub.dev won't find them.
 platforms:

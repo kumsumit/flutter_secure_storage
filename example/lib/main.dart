@@ -38,19 +38,19 @@ class HomePageState extends State<HomePage> {
     );
   }
 
-  void _updateAccountName() {
+  Future<void> _updateAccountName() async {
     if (_accountNameController.text.isEmpty) return;
 
     _initializeFlutterSecureStorage(_accountNameController.text);
-    _readAll();
+    await _readAll();
   }
 
   @override
-  void initState() {
+  Future<void> initState() async {
     super.initState();
     _initializeFlutterSecureStorage(AppleOptions.defaultAccountName);
     _accountNameController.addListener(_updateAccountName);
-    _readAll();
+    await _readAll();
   }
 
   @override
