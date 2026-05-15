@@ -1,8 +1,5 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
     id("com.android.library")
-    id("org.jetbrains.kotlin.android")
 }
 
 group = "com.it_nomads.fluttersecurestorage"
@@ -15,6 +12,7 @@ repositories {
 
 android {
     namespace = "com.it_nomads.fluttersecurestorage"
+    ndkVersion = "30.0.14904198"
 
     buildFeatures {
         buildConfig = true
@@ -34,10 +32,4 @@ android {
 
 dependencies {
     implementation("com.google.crypto.tink:tink-android:1.18.0")
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget = JvmTarget.JVM_21
-    }
 }

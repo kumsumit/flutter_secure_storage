@@ -4,7 +4,6 @@ import java.nio.file.Path
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -24,28 +23,18 @@ val flutterVersionName: String = localProperties.getProperty("flutter.versionNam
 
 android {
     namespace = "com.it_nomads.fluttersecurestorageexample"
-
-    compileSdk = 35
+    ndkVersion = "30.0.14904198"
+    compileSdk = 37
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
-    sourceSets {
-        named("main") {
-            java.srcDir("src/main/kotlin")
-        }
-    }
-
     defaultConfig {
         applicationId = "com.it_nomads.fluttersecurestorageexample"
-        minSdk = 23
-        targetSdk = 35
+        minSdk = 24
+        targetSdk = 37
         versionCode = flutterVersionCode.toInt()
         versionName = flutterVersionName
     }

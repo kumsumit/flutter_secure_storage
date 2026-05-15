@@ -179,7 +179,6 @@ class MasterKey internal constructor(
         const val DEFAULT_AES_GCM_MASTER_KEY_SIZE = 256
         private const val DEFAULT_AUTHENTICATION_VALIDITY_DURATION_SECONDS = 5 * 60
 
-        @SuppressLint("MethodNameUnits")
         @JvmStatic
         val defaultAuthenticationValidityDurationSeconds: Int
             get() = DEFAULT_AUTHENTICATION_VALIDITY_DURATION_SECONDS
