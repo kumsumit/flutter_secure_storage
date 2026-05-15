@@ -21,6 +21,19 @@ Add the dependency in your `pubspec.yaml` and run `flutter pub get`.
 2. Exclude shared preferences used by the plugin:
     - Follow the linked documentation for further details.
 
+Android storage uses an AES-256-GCM master key in Android Keystore to wrap the
+Tink keysets used by Encrypted Shared Preferences. By default,
+`AndroidOptions.storageSecurityLevel` is `automatic`: on Android 9/API 28 or
+newer devices that advertise `FEATURE_STRONGBOX_KEYSTORE`, the plugin requests
+a StrongBox-backed master key; if StrongBox is unavailable or key generation
+fails, it falls back to Android Keystore.
+
+Use `AndroidStorageSecurityLevel.strongBoxOnly` if your app must fail instead
+of falling back when StrongBox cannot be used. Devices without StrongBox support
+still use Android Keystore, which is the strongest generally available fallback
+on Android. Existing installations keep using their already-created master key
+alias so previously stored values remain readable.
+
 ### iOS
 
 You also need to add Keychain Sharing as capability to your iOS runner. To achieve this, please add the following in *both* your `ios/Runner/DebugProfile.entitlements` *and* `ios/Runner/Release.entitlements`.

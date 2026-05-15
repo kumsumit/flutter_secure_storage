@@ -98,8 +98,10 @@ void main() {
       const options = <String, String>{};
       await methodStorage.write(key: key, value: 'test', options: options);
 
-      final result =
-          await methodStorage.containsKey(key: key, options: options);
+      final result = await methodStorage.containsKey(
+        key: key,
+        options: options,
+      );
 
       expect(result, true);
     });
@@ -167,8 +169,9 @@ void main() {
     });
 
     test('Can be extended', () {
-      FlutterSecureStoragePlatform.instance =
-          TestFlutterSecureStoragePlatform({});
+      FlutterSecureStoragePlatform.instance = TestFlutterSecureStoragePlatform(
+        {},
+      );
     });
   });
 
@@ -368,6 +371,7 @@ void main() {
         'resetOnError': 'false',
         'keyCipherAlgorithm': 'RSA_ECB_PKCS1Padding',
         'storageCipherAlgorithm': 'AES_CBC_PKCS7Padding',
+        'storageSecurityLevel': 'automatic',
         'sharedPreferencesName': '',
         'preferencesKeyPrefix': '',
       });
@@ -379,6 +383,7 @@ void main() {
         keyCipherAlgorithm:
             KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
         storageCipherAlgorithm: StorageCipherAlgorithm.AES_GCM_NoPadding,
+        storageSecurityLevel: AndroidStorageSecurityLevel.strongBoxOnly,
         sharedPreferencesName: 'customPrefs',
         preferencesKeyPrefix: 'customPrefix',
       );
@@ -388,6 +393,7 @@ void main() {
         'resetOnError': 'true',
         'keyCipherAlgorithm': 'RSA_ECB_OAEPwithSHA_256andMGF1Padding',
         'storageCipherAlgorithm': 'AES_GCM_NoPadding',
+        'storageSecurityLevel': 'strongBoxOnly',
         'sharedPreferencesName': 'customPrefs',
         'preferencesKeyPrefix': 'customPrefix',
       });
@@ -406,6 +412,7 @@ void main() {
         'resetOnError': 'true',
         'keyCipherAlgorithm': 'RSA_ECB_PKCS1Padding',
         'storageCipherAlgorithm': 'AES_CBC_PKCS7Padding',
+        'storageSecurityLevel': 'automatic',
         'sharedPreferencesName': 'newPrefs',
         'preferencesKeyPrefix': '',
       });
@@ -424,8 +431,7 @@ void main() {
       expect(copied.toMap(), original.toMap());
     });
 
-    test(
-        'AndroidOptions handles null sharedPreferencesName and '
+    test('AndroidOptions handles null sharedPreferencesName and '
         'preferencesKeyPrefix', () {
       const options = AndroidOptions.defaultOptions;
 
@@ -530,14 +536,15 @@ void main() {
     });
 
     test(
-        'WindowsOptions copyWith without changes should retain original values',
-        () {
-      const original = WindowsOptions(useBackwardCompatibility: true);
+      'WindowsOptions copyWith without changes should retain original values',
+      () {
+        const original = WindowsOptions(useBackwardCompatibility: true);
 
-      final copied = original.copyWith();
+        final copied = original.copyWith();
 
-      expect(copied.toMap(), original.toMap());
-    });
+        expect(copied.toMap(), original.toMap());
+      },
+    );
 
     test('WindowsOptions defaultOptions matches default constructor', () {
       const defaultOptions = WindowsOptions.defaultOptions;
@@ -594,8 +601,9 @@ void main() {
         'resultLimit': '10',
         'shouldReturnPersistentReference': 'true',
         'authenticationUIBehavior': 'require_auth',
-        'accessControlFlags':
-            [AccessControlFlag.biometryCurrentSet.name].toString(),
+        'accessControlFlags': [
+          AccessControlFlag.biometryCurrentSet.name,
+        ].toString(),
       });
     });
 

@@ -3,6 +3,7 @@ part of '../flutter_secure_storage.dart';
 //ignore_for_file: public_member_api_docs
 //ignore_for_file: constant_identifier_names
 //ignore_for_file: deprecated_member_use_from_same_package
+//ignore_for_file: remove_deprecations_in_breaking_versions
 
 enum KeyCipherAlgorithm {
   RSA_ECB_PKCS1Padding,
@@ -14,23 +15,40 @@ enum StorageCipherAlgorithm {
   AES_GCM_NoPadding,
 }
 
+/// Android master-key backing preference.
+enum AndroidStorageSecurityLevel {
+  /// Use StrongBox when the device supports it, otherwise use Android Keystore.
+  automatic,
+
+  /// Require StrongBox-backed keys and fail initialization when unavailable.
+  strongBoxOnly,
+
+  /// Use Android Keystore without requesting StrongBox.
+  androidKeystore,
+}
+
 /// Specific options for Android platform.
 class AndroidOptions extends Options {
   const AndroidOptions({
-    @Deprecated('EncryptedSharedPreferences will always be true, and will be '
-        'removed in the next release')
+    @Deprecated(
+      'EncryptedSharedPreferences will always be true, and will be '
+      'removed in the next release',
+    )
     bool encryptedSharedPreferences = false,
     bool resetOnError = false,
     KeyCipherAlgorithm keyCipherAlgorithm =
         KeyCipherAlgorithm.RSA_ECB_PKCS1Padding,
     StorageCipherAlgorithm storageCipherAlgorithm =
         StorageCipherAlgorithm.AES_CBC_PKCS7Padding,
+    AndroidStorageSecurityLevel storageSecurityLevel =
+        AndroidStorageSecurityLevel.automatic,
     this.sharedPreferencesName,
     this.preferencesKeyPrefix,
-  })  : _encryptedSharedPreferences = encryptedSharedPreferences,
-        _resetOnError = resetOnError,
-        _keyCipherAlgorithm = keyCipherAlgorithm,
-        _storageCipherAlgorithm = storageCipherAlgorithm;
+  }) : _encryptedSharedPreferences = encryptedSharedPreferences,
+       _resetOnError = resetOnError,
+       _keyCipherAlgorithm = keyCipherAlgorithm,
+       _storageCipherAlgorithm = storageCipherAlgorithm,
+       _storageSecurityLevel = storageSecurityLevel;
 
   /// EncryptedSharedPrefences are only available on API 23 and greater
   final bool _encryptedSharedPreferences;
@@ -56,6 +74,14 @@ class AndroidOptions extends Options {
   /// Plugin will fall back to default algorithm in previous system versions.
   final StorageCipherAlgorithm _storageCipherAlgorithm;
 
+  /// Selects the Android master-key backing.
+  ///
+  /// Defaults to [AndroidStorageSecurityLevel.automatic], which requests
+  /// StrongBox on Android 9+ devices that advertise StrongBox and falls back to
+  /// Android Keystore when StrongBox is unavailable. Existing installations
+  /// keep using their already-created master key alias.
+  final AndroidStorageSecurityLevel _storageSecurityLevel;
+
   /// The name of the sharedPreference database to use.
   /// You can select your own name if you want. A default name will
   /// be used if nothing is provided here.
@@ -74,30 +100,31 @@ class AndroidOptions extends Options {
 
   @override
   Map<String, String> toMap() => <String, String>{
-        'encryptedSharedPreferences': '$_encryptedSharedPreferences',
-        'resetOnError': '$_resetOnError',
-        'keyCipherAlgorithm': _keyCipherAlgorithm.name,
-        'storageCipherAlgorithm': _storageCipherAlgorithm.name,
-        'sharedPreferencesName': sharedPreferencesName ?? '',
-        'preferencesKeyPrefix': preferencesKeyPrefix ?? '',
-      };
+    'encryptedSharedPreferences': '$_encryptedSharedPreferences',
+    'resetOnError': '$_resetOnError',
+    'keyCipherAlgorithm': _keyCipherAlgorithm.name,
+    'storageCipherAlgorithm': _storageCipherAlgorithm.name,
+    'storageSecurityLevel': _storageSecurityLevel.name,
+    'sharedPreferencesName': sharedPreferencesName ?? '',
+    'preferencesKeyPrefix': preferencesKeyPrefix ?? '',
+  };
 
   AndroidOptions copyWith({
     bool? encryptedSharedPreferences,
     bool? resetOnError,
     KeyCipherAlgorithm? keyCipherAlgorithm,
     StorageCipherAlgorithm? storageCipherAlgorithm,
+    AndroidStorageSecurityLevel? storageSecurityLevel,
     String? preferencesKeyPrefix,
     String? sharedPreferencesName,
-  }) =>
-      AndroidOptions(
-        encryptedSharedPreferences:
-            encryptedSharedPreferences ?? _encryptedSharedPreferences,
-        resetOnError: resetOnError ?? _resetOnError,
-        keyCipherAlgorithm: keyCipherAlgorithm ?? _keyCipherAlgorithm,
-        storageCipherAlgorithm:
-            storageCipherAlgorithm ?? _storageCipherAlgorithm,
-        sharedPreferencesName: sharedPreferencesName,
-        preferencesKeyPrefix: preferencesKeyPrefix,
-      );
+  }) => AndroidOptions(
+    encryptedSharedPreferences:
+        encryptedSharedPreferences ?? _encryptedSharedPreferences,
+    resetOnError: resetOnError ?? _resetOnError,
+    keyCipherAlgorithm: keyCipherAlgorithm ?? _keyCipherAlgorithm,
+    storageCipherAlgorithm: storageCipherAlgorithm ?? _storageCipherAlgorithm,
+    storageSecurityLevel: storageSecurityLevel ?? _storageSecurityLevel,
+    sharedPreferencesName: sharedPreferencesName,
+    preferencesKeyPrefix: preferencesKeyPrefix,
+  );
 }

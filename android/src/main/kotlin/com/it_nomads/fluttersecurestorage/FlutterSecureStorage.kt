@@ -2,8 +2,8 @@ package com.it_nomads.fluttersecurestorage
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Base64
 import android.util.Log
 import com.it_nomads.fluttersecurestorage.ciphers.StorageCipher
@@ -64,7 +64,7 @@ class FlutterSecureStorage(
         sharedPreferencesName: String,
     ): SharedPreferences =
         try {
-            initializeEncryptedSharedPreferencesManager(context, sharedPreferencesName).also { target ->
+            initializeEncryptedSharedPreferencesManager(context, sharedPreferencesName, options).also { target ->
                 if (!target.getBoolean(PREF_KEY_MIGRATED, false)) {
                     migrateToEncryptedPreferences(
                         context = context,
@@ -85,7 +85,7 @@ class FlutterSecureStorage(
             context.getSharedPreferences(sharedPreferencesName, Context.MODE_PRIVATE).edit().clear().apply()
 
             try {
-                initializeEncryptedSharedPreferencesManager(context, sharedPreferencesName)
+                initializeEncryptedSharedPreferencesManager(context, sharedPreferencesName, options)
             } catch (resetException: Exception) {
                 Log.e(TAG, "initialization after reset failed", resetException)
                 throw resetException
@@ -95,20 +95,11 @@ class FlutterSecureStorage(
     private fun initializeEncryptedSharedPreferencesManager(
         context: Context,
         sharedPreferencesName: String,
+        options: Map<String, Any?>,
     ): SharedPreferences {
         val masterKey = MasterKey.Builder(context)
-            .setKeyGenParameterSpec(
-                KeyGenParameterSpec.Builder(
-                    MasterKey.DEFAULT_MASTER_KEY_ALIAS,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-                )
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setKeySize(256)
-                    .setRandomizedEncryptionRequired(true)
-                    .build(),
-            )
-            .build()
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .buildWithBestAvailableSecurity(context, options)
 
         return EncryptedSharedPreferences.create(
             context = context,
@@ -117,6 +108,35 @@ class FlutterSecureStorage(
             prefKeyEncryptionScheme = EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             prefValueEncryptionScheme = EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
         )
+    }
+
+    private fun MasterKey.Builder.buildWithBestAvailableSecurity(
+        context: Context,
+        options: Map<String, Any?>,
+    ): MasterKey {
+        val securityLevel = options.stringOption(
+            PREF_OPTION_STORAGE_SECURITY_LEVEL,
+            STORAGE_SECURITY_LEVEL_AUTOMATIC,
+        )
+        val shouldRequestStrongBox = securityLevel != STORAGE_SECURITY_LEVEL_ANDROID_KEYSTORE &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+            context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
+
+        if (!shouldRequestStrongBox) return build()
+
+        return try {
+            setRequestStrongBoxBacked(true).build()
+        } catch (exception: Exception) {
+            if (securityLevel == STORAGE_SECURITY_LEVEL_STRONG_BOX_ONLY) {
+                Log.e(TAG, "StrongBox-backed master key was required but could not be created.", exception)
+                throw exception
+            }
+
+            Log.w(TAG, "StrongBox-backed master key unavailable; falling back to Android Keystore.", exception)
+            MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+        }
     }
 
     private fun migrateToEncryptedPreferences(
@@ -180,6 +200,10 @@ class FlutterSecureStorage(
         const val PREF_OPTION_NAME = "sharedPreferencesName"
         const val PREF_OPTION_PREFIX = "preferencesKeyPrefix"
         const val PREF_OPTION_DELETE_ON_FAILURE = "resetOnError"
+        const val PREF_OPTION_STORAGE_SECURITY_LEVEL = "storageSecurityLevel"
+        const val STORAGE_SECURITY_LEVEL_AUTOMATIC = "automatic"
+        const val STORAGE_SECURITY_LEVEL_STRONG_BOX_ONLY = "strongBoxOnly"
+        const val STORAGE_SECURITY_LEVEL_ANDROID_KEYSTORE = "androidKeystore"
         const val PREF_KEY_MIGRATED = "preferencesMigrated"
     }
 }

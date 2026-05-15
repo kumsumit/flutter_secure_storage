@@ -3,6 +3,7 @@
 * [Apple] Refactored code and added missing options
 * [Apple] Added support for swift package manager
 * [Web] Update flutter_secure_storage_platform_interface to be compatible with WASM.
+* [Android] Added automatic StrongBox-backed master-key creation with Android Keystore fallback.
 
 ## 10.0.0-beta.3
 * [iOS] Fix delete and deleteAll when synchronizable is set.

@@ -14,6 +14,7 @@ import java.io.StringWriter
 class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
     private var channel: MethodChannel? = null
     private var secureStorage: FlutterSecureStorage? = null
+    private var secureStorageOptions: Map<String, Any?>? = null
     private var workerThread: HandlerThread? = null
     private var workerThreadHandler: Handler? = null
     private var binding: FlutterPlugin.FlutterPluginBinding? = null
@@ -35,6 +36,7 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
         channel?.setMethodCallHandler(null)
         channel = null
         secureStorage = null
+        secureStorageOptions = null
         this.binding = null
     }
 
@@ -88,7 +90,7 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
     }
 
     private fun initSecureStorage(result: Result, options: Map<String, Any?>): Boolean {
-        if (secureStorage != null) return true
+        if (secureStorage != null && secureStorageOptions == options) return true
 
         val applicationContext = binding?.applicationContext
         if (applicationContext == null) {
@@ -98,6 +100,7 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
 
         return try {
             secureStorage = FlutterSecureStorage(applicationContext, options)
+            secureStorageOptions = options
             true
         } catch (exception: Exception) {
             result.error(
