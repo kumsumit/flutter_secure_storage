@@ -2,22 +2,23 @@ package com.it_nomads.fluttersecurestorage.ciphers
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.os.Build
 
 private enum class KeyCipherAlgorithm(
-    val minVersionCode: Int,
     val create: (Context) -> KeyCipher,
 ) {
-    RSA_ECB_PKCS1Padding(1, ::RSACipher18Implementation),
-    RSA_ECB_OAEPwithSHA_256andMGF1Padding(Build.VERSION_CODES.M, ::RSACipherOAEPImplementation),
+    RSA_ECB_PKCS1Padding(::RSACipher18Implementation),
+    RSA_ECB_OAEPwithSHA_256andMGF1Padding(::RSACipherOAEPImplementation),
 }
 
 private enum class StorageCipherAlgorithm(
-    val minVersionCode: Int,
-    val create: (Context, KeyCipher) -> StorageCipher,
+    val create: (Context, KeyCipher, Boolean) -> StorageCipher,
 ) {
-    AES_CBC_PKCS7Padding(1, ::StorageCipher18Implementation),
-    AES_GCM_NoPadding(Build.VERSION_CODES.M, ::StorageCipherGCMImplementation),
+    AES_CBC_PKCS7Padding({ context, keyCipher, shouldCreateKeyIfMissing ->
+        StorageCipher18Implementation(context, keyCipher, shouldCreateKeyIfMissing)
+    }),
+    AES_GCM_NoPadding({ context, keyCipher, shouldCreateKeyIfMissing ->
+        StorageCipherGCMImplementation(context, keyCipher, shouldCreateKeyIfMissing)
+    }),
 }
 
 class StorageCipherFactory(
@@ -49,11 +50,19 @@ class StorageCipherFactory(
 
     @Throws(Exception::class)
     fun getSavedStorageCipher(context: Context): StorageCipher =
-        savedStorageAlgorithm.create(context, savedKeyAlgorithm.create(context))
+        savedStorageAlgorithm.create(
+            context,
+            savedKeyAlgorithm.create(context),
+            false,
+        )
 
     @Throws(Exception::class)
     fun getCurrentStorageCipher(context: Context): StorageCipher =
-        currentStorageAlgorithm.create(context, currentKeyAlgorithm.create(context))
+        currentStorageAlgorithm.create(
+            context,
+            currentKeyAlgorithm.create(context),
+            true,
+        )
 
     fun storeCurrentAlgorithms(editor: SharedPreferences.Editor) {
         editor.putString(ELEMENT_PREFERENCES_ALGORITHM_KEY, currentKeyAlgorithm.name)
@@ -72,21 +81,13 @@ class StorageCipherFactory(
         key: String,
         defaultValue: KeyCipherAlgorithm,
     ): KeyCipherAlgorithm =
-        (this[key]?.toString()).toEnumOrDefault(defaultValue).takeIfSupported(defaultValue)
+        (this[key]?.toString()).toEnumOrDefault(defaultValue)
 
     private fun Map<String, Any?>.algorithmOption(
         key: String,
         defaultValue: StorageCipherAlgorithm,
     ): StorageCipherAlgorithm =
-        (this[key]?.toString()).toEnumOrDefault(defaultValue).takeIfSupported(defaultValue)
-
-    private fun KeyCipherAlgorithm.takeIfSupported(defaultValue: KeyCipherAlgorithm): KeyCipherAlgorithm =
-        if (minVersionCode <= Build.VERSION.SDK_INT) this else defaultValue
-
-    private fun StorageCipherAlgorithm.takeIfSupported(
-        defaultValue: StorageCipherAlgorithm,
-    ): StorageCipherAlgorithm =
-        if (minVersionCode <= Build.VERSION.SDK_INT) this else defaultValue
+        (this[key]?.toString()).toEnumOrDefault(defaultValue)
 
     private companion object {
         const val ELEMENT_PREFERENCES_ALGORITHM_PREFIX = "FlutterSecureSAlgorithm"

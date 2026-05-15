@@ -2,11 +2,8 @@ package com.it_nomads.fluttersecurestorage.ciphers
 
 import android.content.Context
 import android.content.res.Configuration
-import android.os.Build
-import android.security.KeyPairGeneratorSpec
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import androidx.annotation.RequiresApi
 import java.math.BigInteger
 import java.security.Key
 import java.security.KeyPairGenerator
@@ -58,11 +55,7 @@ internal open class RSACipher18Implementation(
         }
 
     protected open fun getRSACipher(): Cipher =
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            Cipher.getInstance("RSA/ECB/PKCS1Padding", "AndroidOpenSSL")
-        } else {
-            Cipher.getInstance("RSA/ECB/PKCS1Padding", "AndroidKeyStoreBCWorkaround")
-        }
+        Cipher.getInstance("RSA/ECB/PKCS1Padding", "AndroidKeyStoreBCWorkaround")
 
     protected open val algorithmParameterSpec: AlgorithmParameterSpec?
         get() = null
@@ -88,11 +81,7 @@ internal open class RSACipher18Implementation(
             val end = Calendar.getInstance().apply { add(Calendar.YEAR, 25) }
 
             val generator = KeyPairGenerator.getInstance(TYPE_RSA, KEYSTORE_PROVIDER_ANDROID)
-            val spec = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-                makeAlgorithmParameterSpecLegacy(start, end)
-            } else {
-                makeAlgorithmParameterSpec(start, end)
-            }
+            val spec = makeAlgorithmParameterSpec(start, end)
 
             generator.initialize(spec)
             generator.generateKeyPair()
@@ -101,20 +90,6 @@ internal open class RSACipher18Implementation(
         }
     }
 
-    @Suppress("DEPRECATION")
-    private fun makeAlgorithmParameterSpecLegacy(
-        start: Calendar,
-        end: Calendar,
-    ): AlgorithmParameterSpec =
-        KeyPairGeneratorSpec.Builder(context)
-            .setAlias(keyAlias)
-            .setSubject(X500Principal("CN=$keyAlias"))
-            .setSerialNumber(BigInteger.valueOf(1))
-            .setStartDate(start.time)
-            .setEndDate(end.time)
-            .build()
-
-    @RequiresApi(Build.VERSION_CODES.M)
     protected open fun makeAlgorithmParameterSpec(
         start: Calendar,
         end: Calendar,

@@ -1,10 +1,8 @@
 package com.it_nomads.fluttersecurestorage.ciphers
 
 import android.content.Context
-import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import androidx.annotation.RequiresApi
 import java.math.BigInteger
 import java.security.spec.AlgorithmParameterSpec
 import java.security.spec.MGF1ParameterSpec
@@ -18,7 +16,6 @@ internal class RSACipherOAEPImplementation(context: Context) : RSACipher18Implem
     override fun createKeyAlias(): String =
         "${context.packageName}.FlutterSecureStoragePluginKeyOAEP"
 
-    @RequiresApi(Build.VERSION_CODES.M)
     override fun makeAlgorithmParameterSpec(
         start: Calendar,
         end: Calendar,

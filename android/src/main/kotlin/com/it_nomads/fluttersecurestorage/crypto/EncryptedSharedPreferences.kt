@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class EncryptedSharedPreferences private constructor(
     private val fileName: String,
-    private val masterKeyAlias: String,
     private val sharedPreferences: SharedPreferences,
     private val valueAead: Aead,
     private val keyDeterministicAead: DeterministicAead,
@@ -154,7 +153,7 @@ class EncryptedSharedPreferences private constructor(
 
     private fun requireNotReservedKey(key: String?) {
         if (isReservedKey(key)) {
-            throw SecurityException("$key is a reserved key for the encryption keyset.")
+            throw SecurityException("Reserved keys cannot be used for encrypted preferences.")
         }
     }
 
@@ -229,7 +228,7 @@ class EncryptedSharedPreferences private constructor(
 
         override fun remove(key: String?): SharedPreferences.Editor = apply {
             if (encryptedSharedPreferences.isReservedKey(key)) {
-                throw SecurityException("$key is a reserved key for the encryption keyset.")
+                throw SecurityException("Reserved keys cannot be modified.")
             }
             editor.remove(encryptedSharedPreferences.encryptKey(key))
             keysChanged.add(key)
@@ -266,7 +265,7 @@ class EncryptedSharedPreferences private constructor(
 
         private fun putEncryptedObject(key: String?, value: ByteArray) {
             if (encryptedSharedPreferences.isReservedKey(key)) {
-                throw SecurityException("$key is a reserved key for the encryption keyset.")
+                throw SecurityException("Reserved keys cannot be modified.")
             }
 
             keysChanged.add(key)
@@ -374,7 +373,6 @@ class EncryptedSharedPreferences private constructor(
 
             return EncryptedSharedPreferences(
                 fileName = fileName,
-                masterKeyAlias = masterKeyAlias,
                 sharedPreferences = applicationContext.getSharedPreferences(fileName, Context.MODE_PRIVATE),
                 valueAead = aead,
                 keyDeterministicAead = daead,

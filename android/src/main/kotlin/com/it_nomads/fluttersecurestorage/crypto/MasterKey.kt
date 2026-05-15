@@ -99,6 +99,7 @@ class MasterKey internal constructor(
                     .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                     .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                     .setKeySize(DEFAULT_AES_GCM_MASTER_KEY_SIZE)
+                    .setRandomizedEncryptionRequired(true)
 
                 if (authenticationRequired) {
                     keyGenBuilder.setUserAuthenticationRequired(true)

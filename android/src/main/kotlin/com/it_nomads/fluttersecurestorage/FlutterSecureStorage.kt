@@ -105,6 +105,7 @@ class FlutterSecureStorage(
                     .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                     .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                     .setKeySize(256)
+                    .setRandomizedEncryptionRequired(true)
                     .build(),
             )
             .build()
@@ -142,7 +143,7 @@ class FlutterSecureStorage(
                         source.edit().remove(key).apply()
                         successful++
                     } catch (exception: Exception) {
-                        Log.e(TAG, "Migration failed for key: $key", exception)
+                        Log.e(TAG, "Migration failed for one stored value.", exception)
                         failed++
                         if (deleteOnFailure) {
                             source.edit().remove(key).apply()

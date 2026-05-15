@@ -13,6 +13,7 @@ import javax.crypto.spec.SecretKeySpec
 internal open class StorageCipher18Implementation(
     context: Context,
     rsaCipher: KeyCipher,
+    private val shouldCreateKeyIfMissing: Boolean = true,
 ) : StorageCipher {
     private val secureRandom = SecureRandom()
     private val cipher: Cipher = getCipher()
@@ -33,7 +34,11 @@ internal open class StorageCipher18Implementation(
             }
         }
 
-        secretKey = restoredKey ?: generateAndStoreKey(rsaCipher, preferences.edit(), aesPreferencesKey)
+        secretKey = restoredKey ?: if (shouldCreateKeyIfMissing) {
+            generateAndStoreKey(rsaCipher, preferences.edit(), aesPreferencesKey)
+        } else {
+            throw IllegalStateException("No legacy AES key found for migration.")
+        }
     }
 
     protected open val aesPreferencesKey: String
@@ -75,7 +80,7 @@ internal open class StorageCipher18Implementation(
 
     private companion object {
         const val TAG = "StorageCipher18Impl"
-        const val KEY_SIZE = 16
+        const val KEY_SIZE = 32
         const val KEY_ALGORITHM = "AES"
         const val SHARED_PREFERENCES_NAME = "FlutterSecureKeyStorage"
     }
