@@ -372,6 +372,8 @@ void main() {
         'keyCipherAlgorithm': 'RSA_ECB_PKCS1Padding',
         'storageCipherAlgorithm': 'AES_CBC_PKCS7Padding',
         'storageSecurityLevel': 'automatic',
+        'userAuthenticationRequired': 'false',
+        'userAuthenticationValidityDurationSeconds': '300',
         'sharedPreferencesName': '',
         'preferencesKeyPrefix': '',
       });
@@ -384,6 +386,8 @@ void main() {
             KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
         storageCipherAlgorithm: StorageCipherAlgorithm.AES_GCM_NoPadding,
         storageSecurityLevel: AndroidStorageSecurityLevel.strongBoxOnly,
+        userAuthenticationRequired: true,
+        userAuthenticationValidityDurationSeconds: 30,
         sharedPreferencesName: 'customPrefs',
         preferencesKeyPrefix: 'customPrefix',
       );
@@ -394,6 +398,8 @@ void main() {
         'keyCipherAlgorithm': 'RSA_ECB_OAEPwithSHA_256andMGF1Padding',
         'storageCipherAlgorithm': 'AES_GCM_NoPadding',
         'storageSecurityLevel': 'strongBoxOnly',
+        'userAuthenticationRequired': 'true',
+        'userAuthenticationValidityDurationSeconds': '30',
         'sharedPreferencesName': 'customPrefs',
         'preferencesKeyPrefix': 'customPrefix',
       });
@@ -413,9 +419,26 @@ void main() {
         'keyCipherAlgorithm': 'RSA_ECB_PKCS1Padding',
         'storageCipherAlgorithm': 'AES_CBC_PKCS7Padding',
         'storageSecurityLevel': 'automatic',
+        'userAuthenticationRequired': 'false',
+        'userAuthenticationValidityDurationSeconds': '300',
         'sharedPreferencesName': 'newPrefs',
         'preferencesKeyPrefix': '',
       });
+    });
+
+    test('copyWith should override user-authentication options', () {
+      const original = AndroidOptions.defaultOptions;
+
+      final copied = original.copyWith(
+        userAuthenticationRequired: true,
+        userAuthenticationValidityDurationSeconds: 45,
+      );
+
+      expect(copied.toMap()['userAuthenticationRequired'], 'true');
+      expect(
+        copied.toMap()['userAuthenticationValidityDurationSeconds'],
+        '45',
+      );
     });
 
     test('copyWith without changes should retain original values', () {

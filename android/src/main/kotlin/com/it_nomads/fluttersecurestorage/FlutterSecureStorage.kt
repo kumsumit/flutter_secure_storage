@@ -114,6 +114,10 @@ class FlutterSecureStorage(
         context: Context,
         options: Map<String, Any?>,
     ): MasterKey {
+        // Bind the key to recent user authentication (biometric / device
+        // credential) at the hardware level when requested.
+        applyUserAuthentication(options)
+
         val securityLevel = options.stringOption(
             PREF_OPTION_STORAGE_SECURITY_LEVEL,
             STORAGE_SECURITY_LEVEL_AUTOMATIC,
@@ -135,8 +139,27 @@ class FlutterSecureStorage(
             Log.w(TAG, "StrongBox-backed master key unavailable; falling back to Android Keystore.", exception)
             MasterKey.Builder(context)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .applyUserAuthentication(options)
                 .build()
         }
+    }
+
+    /// Mirrors the [AndroidOptions.userAuthenticationRequired] flag onto the
+    /// master key builder. When enabled, the Keystore refuses to use the key
+    /// unless the user authenticated within the configured validity window.
+    private fun MasterKey.Builder.applyUserAuthentication(
+        options: Map<String, Any?>,
+    ): MasterKey.Builder = apply {
+        val required = options.stringOption(
+            PREF_OPTION_USER_AUTH_REQUIRED,
+            "false",
+        ).toBoolean()
+        if (!required) return@apply
+        val validitySeconds = options.intOption(
+            PREF_OPTION_USER_AUTH_VALIDITY_SECONDS,
+            DEFAULT_USER_AUTH_VALIDITY_SECONDS,
+        ).coerceAtLeast(1)
+        setUserAuthenticationRequired(true, validitySeconds)
     }
 
     private fun migrateToEncryptedPreferences(
@@ -193,6 +216,13 @@ class FlutterSecureStorage(
     private fun Map<String, Any?>.stringOption(key: String, defaultValue: String): String =
         (this[key] as? String)?.takeIf { it.isNotEmpty() } ?: defaultValue
 
+    private fun Map<String, Any?>.intOption(key: String, defaultValue: Int): Int =
+        when (val raw = this[key]) {
+            is Number -> raw.toInt()
+            is String -> raw.toIntOrNull() ?: defaultValue
+            else -> defaultValue
+        }
+
     private companion object {
         const val TAG = "FlutterSecureStorage"
         const val DEFAULT_PREF_NAME = "FlutterSecureStorage"
@@ -204,6 +234,10 @@ class FlutterSecureStorage(
         const val STORAGE_SECURITY_LEVEL_AUTOMATIC = "automatic"
         const val STORAGE_SECURITY_LEVEL_STRONG_BOX_ONLY = "strongBoxOnly"
         const val STORAGE_SECURITY_LEVEL_ANDROID_KEYSTORE = "androidKeystore"
+        const val PREF_OPTION_USER_AUTH_REQUIRED = "userAuthenticationRequired"
+        const val PREF_OPTION_USER_AUTH_VALIDITY_SECONDS =
+            "userAuthenticationValidityDurationSeconds"
+        const val DEFAULT_USER_AUTH_VALIDITY_SECONDS = 300
         const val PREF_KEY_MIGRATED = "preferencesMigrated"
     }
 }

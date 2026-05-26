@@ -1,3 +1,6 @@
+## 10.0.0-beta.5
+* [Android] Added `AndroidOptions.userAuthenticationRequired` (with `userAuthenticationValidityDurationSeconds`) to create the master key with `setUserAuthenticationRequired(true)`, so the Keystore hardware refuses to use the key unless the user authenticated (strong biometric / device credential) within the validity window.
+
 ## 10.0.0-beta.4
 * [Apple] Merged ios and macos implementation into a new package flutter_secure_storage_darwin
 * [Apple] Refactored code and added missing options

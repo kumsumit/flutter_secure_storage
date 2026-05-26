@@ -42,13 +42,18 @@ class AndroidOptions extends Options {
         StorageCipherAlgorithm.AES_CBC_PKCS7Padding,
     AndroidStorageSecurityLevel storageSecurityLevel =
         AndroidStorageSecurityLevel.automatic,
+    bool userAuthenticationRequired = false,
+    int userAuthenticationValidityDurationSeconds = 300,
     this.sharedPreferencesName,
     this.preferencesKeyPrefix,
   }) : _encryptedSharedPreferences = encryptedSharedPreferences,
        _resetOnError = resetOnError,
        _keyCipherAlgorithm = keyCipherAlgorithm,
        _storageCipherAlgorithm = storageCipherAlgorithm,
-       _storageSecurityLevel = storageSecurityLevel;
+       _storageSecurityLevel = storageSecurityLevel,
+       _userAuthenticationRequired = userAuthenticationRequired,
+       _userAuthenticationValidityDurationSeconds =
+           userAuthenticationValidityDurationSeconds;
 
   /// EncryptedSharedPrefences are only available on API 23 and greater
   final bool _encryptedSharedPreferences;
@@ -82,6 +87,24 @@ class AndroidOptions extends Options {
   /// keep using their already-created master key alias.
   final AndroidStorageSecurityLevel _storageSecurityLevel;
 
+  /// When true, the Android Keystore master key is created with
+  /// `setUserAuthenticationRequired(true)`, so the secure hardware itself
+  /// refuses to use the key unless the user has authenticated (strong biometric
+  /// or device credential) within
+  /// [_userAuthenticationValidityDurationSeconds]. This binds the key to the
+  /// user's presence, not just possession of the device.
+  ///
+  /// The app must trigger an authentication (e.g. via a biometric prompt)
+  /// before reading/writing, otherwise the operation throws
+  /// `UserNotAuthenticatedException`. Defaults to false. Only affects newly
+  /// created master keys.
+  final bool _userAuthenticationRequired;
+
+  /// How long, in seconds, a successful authentication keeps the master key
+  /// usable before the user must authenticate again. Must be >= 1. Ignored when
+  /// [_userAuthenticationRequired] is false. Defaults to 300 (5 minutes).
+  final int _userAuthenticationValidityDurationSeconds;
+
   /// The name of the sharedPreference database to use.
   /// You can select your own name if you want. A default name will
   /// be used if nothing is provided here.
@@ -105,6 +128,9 @@ class AndroidOptions extends Options {
     'keyCipherAlgorithm': _keyCipherAlgorithm.name,
     'storageCipherAlgorithm': _storageCipherAlgorithm.name,
     'storageSecurityLevel': _storageSecurityLevel.name,
+    'userAuthenticationRequired': '$_userAuthenticationRequired',
+    'userAuthenticationValidityDurationSeconds':
+        '$_userAuthenticationValidityDurationSeconds',
     'sharedPreferencesName': sharedPreferencesName ?? '',
     'preferencesKeyPrefix': preferencesKeyPrefix ?? '',
   };
@@ -115,6 +141,8 @@ class AndroidOptions extends Options {
     KeyCipherAlgorithm? keyCipherAlgorithm,
     StorageCipherAlgorithm? storageCipherAlgorithm,
     AndroidStorageSecurityLevel? storageSecurityLevel,
+    bool? userAuthenticationRequired,
+    int? userAuthenticationValidityDurationSeconds,
     String? preferencesKeyPrefix,
     String? sharedPreferencesName,
   }) => AndroidOptions(
@@ -124,6 +152,11 @@ class AndroidOptions extends Options {
     keyCipherAlgorithm: keyCipherAlgorithm ?? _keyCipherAlgorithm,
     storageCipherAlgorithm: storageCipherAlgorithm ?? _storageCipherAlgorithm,
     storageSecurityLevel: storageSecurityLevel ?? _storageSecurityLevel,
+    userAuthenticationRequired:
+        userAuthenticationRequired ?? _userAuthenticationRequired,
+    userAuthenticationValidityDurationSeconds:
+        userAuthenticationValidityDurationSeconds ??
+        _userAuthenticationValidityDurationSeconds,
     sharedPreferencesName: sharedPreferencesName,
     preferencesKeyPrefix: preferencesKeyPrefix,
   );

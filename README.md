@@ -34,6 +34,31 @@ still use Android Keystore, which is the strongest generally available fallback
 on Android. Existing installations keep using their already-created master key
 alias so previously stored values remain readable.
 
+#### Biometric / device-credential gated keys
+
+Set `AndroidOptions.userAuthenticationRequired` to `true` to create the master
+key with `setUserAuthenticationRequired(true)`. The Keystore (StrongBox/TEE)
+then refuses to use the key unless the user has authenticated with a strong
+biometric or device credential within
+`userAuthenticationValidityDurationSeconds` (default `300`). This binds the data
+to the user's presence, not just possession of the device.
+
+```dart
+const storage = FlutterSecureStorage(
+  aOptions: AndroidOptions(
+    userAuthenticationRequired: true,
+    userAuthenticationValidityDurationSeconds: 60,
+  ),
+);
+```
+
+Your app must trigger an authentication (e.g. a biometric prompt via
+`local_auth`) before reading/writing while authentication is stale; otherwise
+the operation throws `UserNotAuthenticatedException`. The flag only affects
+newly created master keys, so change it before the key is first created (or
+after clearing storage). Requires API 23+ (API 30+ for the biometric-or-credential
+parameters); on devices with no enrolled lock screen the key cannot be created.
+
 ### iOS
 
 You also need to add Keychain Sharing as capability to your iOS runner. To achieve this, please add the following in *both* your `ios/Runner/DebugProfile.entitlements` *and* `ios/Runner/Release.entitlements`.
