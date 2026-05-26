@@ -1,3 +1,6 @@
+## 10.0.0-beta.6
+* [Android] Added `AndroidOptions.keystoreAlias` to use a custom Android Keystore master-key alias, isolating a store's master key from the shared default. Required to apply `userAuthenticationRequired` to a single store without gating the app's other secure storage.
+
 ## 10.0.0-beta.5
 * [Android] Added `AndroidOptions.userAuthenticationRequired` (with `userAuthenticationValidityDurationSeconds`) to create the master key with `setUserAuthenticationRequired(true)`, so the Keystore hardware refuses to use the key unless the user authenticated (strong biometric / device credential) within the validity window.
 

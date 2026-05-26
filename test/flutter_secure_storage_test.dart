@@ -376,6 +376,7 @@ void main() {
         'userAuthenticationValidityDurationSeconds': '300',
         'sharedPreferencesName': '',
         'preferencesKeyPrefix': '',
+        'keystoreAlias': '',
       });
     });
 
@@ -390,6 +391,7 @@ void main() {
         userAuthenticationValidityDurationSeconds: 30,
         sharedPreferencesName: 'customPrefs',
         preferencesKeyPrefix: 'customPrefix',
+        keystoreAlias: 'customAlias',
       );
 
       expect(options.toMap(), {
@@ -402,6 +404,7 @@ void main() {
         'userAuthenticationValidityDurationSeconds': '30',
         'sharedPreferencesName': 'customPrefs',
         'preferencesKeyPrefix': 'customPrefix',
+        'keystoreAlias': 'customAlias',
       });
     });
 
@@ -423,6 +426,7 @@ void main() {
         'userAuthenticationValidityDurationSeconds': '300',
         'sharedPreferencesName': 'newPrefs',
         'preferencesKeyPrefix': '',
+        'keystoreAlias': '',
       });
     });
 

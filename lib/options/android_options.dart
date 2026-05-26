@@ -46,6 +46,7 @@ class AndroidOptions extends Options {
     int userAuthenticationValidityDurationSeconds = 300,
     this.sharedPreferencesName,
     this.preferencesKeyPrefix,
+    this.keystoreAlias,
   }) : _encryptedSharedPreferences = encryptedSharedPreferences,
        _resetOnError = resetOnError,
        _keyCipherAlgorithm = keyCipherAlgorithm,
@@ -119,6 +120,15 @@ class AndroidOptions extends Options {
   /// WARNING: If you change this you can't retrieve already saved preferences.
   final String? preferencesKeyPrefix;
 
+  /// The Android Keystore alias for the AES-256-GCM master key that wraps this
+  /// store. Set a custom alias to isolate this storage's master key from other
+  /// `FlutterSecureStorage` instances — required when you want
+  /// [_userAuthenticationRequired] to apply to *this* store only, since the
+  /// default alias is shared across all instances in the app.
+  ///
+  /// WARNING: If you change this you can't retrieve already saved preferences.
+  final String? keystoreAlias;
+
   static const AndroidOptions defaultOptions = AndroidOptions();
 
   @override
@@ -133,6 +143,7 @@ class AndroidOptions extends Options {
         '$_userAuthenticationValidityDurationSeconds',
     'sharedPreferencesName': sharedPreferencesName ?? '',
     'preferencesKeyPrefix': preferencesKeyPrefix ?? '',
+    'keystoreAlias': keystoreAlias ?? '',
   };
 
   AndroidOptions copyWith({
@@ -145,6 +156,7 @@ class AndroidOptions extends Options {
     int? userAuthenticationValidityDurationSeconds,
     String? preferencesKeyPrefix,
     String? sharedPreferencesName,
+    String? keystoreAlias,
   }) => AndroidOptions(
     encryptedSharedPreferences:
         encryptedSharedPreferences ?? _encryptedSharedPreferences,
@@ -159,5 +171,6 @@ class AndroidOptions extends Options {
         _userAuthenticationValidityDurationSeconds,
     sharedPreferencesName: sharedPreferencesName,
     preferencesKeyPrefix: preferencesKeyPrefix,
+    keystoreAlias: keystoreAlias ?? this.keystoreAlias,
   );
 }

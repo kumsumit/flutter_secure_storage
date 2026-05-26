@@ -97,7 +97,7 @@ class FlutterSecureStorage(
         sharedPreferencesName: String,
         options: Map<String, Any?>,
     ): SharedPreferences {
-        val masterKey = MasterKey.Builder(context)
+        val masterKey = masterKeyBuilder(context, options)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .buildWithBestAvailableSecurity(context, options)
 
@@ -137,10 +137,24 @@ class FlutterSecureStorage(
             }
 
             Log.w(TAG, "StrongBox-backed master key unavailable; falling back to Android Keystore.", exception)
-            MasterKey.Builder(context)
+            masterKeyBuilder(context, options)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .applyUserAuthentication(options)
                 .build()
+        }
+    }
+
+    /// Creates a master-key builder using a caller-supplied Keystore alias when
+    /// provided, so a store can isolate its master key from the shared default.
+    private fun masterKeyBuilder(
+        context: Context,
+        options: Map<String, Any?>,
+    ): MasterKey.Builder {
+        val alias = options.stringOption(PREF_OPTION_KEYSTORE_ALIAS, "")
+        return if (alias.isNotEmpty()) {
+            MasterKey.Builder(context, alias)
+        } else {
+            MasterKey.Builder(context)
         }
     }
 
@@ -238,6 +252,7 @@ class FlutterSecureStorage(
         const val PREF_OPTION_USER_AUTH_VALIDITY_SECONDS =
             "userAuthenticationValidityDurationSeconds"
         const val DEFAULT_USER_AUTH_VALIDITY_SECONDS = 300
+        const val PREF_OPTION_KEYSTORE_ALIAS = "keystoreAlias"
         const val PREF_KEY_MIGRATED = "preferencesMigrated"
     }
 }
