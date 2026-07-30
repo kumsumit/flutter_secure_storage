@@ -12,7 +12,7 @@ repositories {
 
 android {
     namespace = "com.it_nomads.fluttersecurestorage"
-    ndkVersion = "30.0.14904198"
+    ndkVersion = "30.0.15729638"
 
     buildFeatures {
         buildConfig = true
