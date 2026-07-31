@@ -28,15 +28,21 @@ class FlutterSecureStorage(
     fun read(key: String?): String? = encryptedPreferences.getString(addPrefixToKey(key), null)
 
     fun write(key: String?, value: String) {
-        encryptedPreferences.edit().putString(addPrefixToKey(key), value).apply()
+        check(encryptedPreferences.edit().putString(addPrefixToKey(key), value).commit()) {
+            "Failed to persist secure storage value."
+        }
     }
 
     fun delete(key: String?) {
-        encryptedPreferences.edit().remove(addPrefixToKey(key)).apply()
+        check(encryptedPreferences.edit().remove(addPrefixToKey(key)).commit()) {
+            "Failed to persist secure storage deletion."
+        }
     }
 
     fun deleteAll() {
-        encryptedPreferences.edit().clear().apply()
+        check(encryptedPreferences.edit().clear().commit()) {
+            "Failed to clear secure storage."
+        }
     }
 
     fun readAll(): Map<String, String> =
