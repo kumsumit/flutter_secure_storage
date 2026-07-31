@@ -28,10 +28,14 @@ void main() {
         await pageObject.deleteAll();
 
         const storageA = FlutterSecureStorage(
-          aOptions: AndroidOptions(storageNamespace: 'namespace_a'),
+          aOptions: AndroidOptions(
+            sharedPreferencesName: 'namespace_a',
+          ),
         );
         const storageB = FlutterSecureStorage(
-          aOptions: AndroidOptions(storageNamespace: 'namespace_b'),
+          aOptions: AndroidOptions(
+            sharedPreferencesName: 'namespace_b',
+          ),
         );
 
         const key = 'it_android_namespace_key';
@@ -57,11 +61,11 @@ void main() {
     );
 
     testWidgets(
-      'Android: namespaces with different cipher algorithms must not interfere '
-      '(full storageNamespace isolation)',
+      'Android: isolated stores with different cipher algorithms must not '
+      'interfere',
       (tester) async {
-        // This test verifies that storageNamespace provides full isolation:
-        // data prefs, config markers, KeyStore aliases, and key storage.
+        // This test verifies full isolation of data preferences, config
+        // markers, KeyStore aliases, and key storage.
         // Different namespaces can safely use different cipher algorithms
         // without conflicting KeyStore entries or wrapped keys.
         final pageObject = await _setupHomePage(tester);
@@ -70,13 +74,21 @@ void main() {
         // Use different key cipher algorithms per namespace to test isolation
         const storageA = FlutterSecureStorage(
           aOptions: AndroidOptions(
-            storageNamespace: 'namespace_alg_a',
-            keyCipherAlgorithm: KeyCipherAlgorithm.AES_GCM_NoPadding,
+            sharedPreferencesName: 'namespace_alg_a',
+            preferencesKeyPrefix: 'namespace_alg_a',
+            keystoreAlias: 'namespace_alg_a',
+            keyCipherAlgorithm:
+                KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
+            storageCipherAlgorithm: StorageCipherAlgorithm.AES_GCM_NoPadding,
           ),
         );
-        // storageB uses default algorithms (OAEP/GCM) — distinct from storageA
+        // storageB uses the default algorithms, isolated from storageA.
         const storageB = FlutterSecureStorage(
-          aOptions: AndroidOptions(storageNamespace: 'namespace_alg_b'),
+          aOptions: AndroidOptions(
+            sharedPreferencesName: 'namespace_alg_b',
+            preferencesKeyPrefix: 'namespace_alg_b',
+            keystoreAlias: 'namespace_alg_b',
+          ),
         );
 
         const key = 'it_android_algorithm_isolation_key';
@@ -98,19 +110,20 @@ void main() {
         final readB2 = await storageB.read(key: key);
 
         // Assert: Both namespaces should still read their correct values.
-        // With full storageNamespace isolation, each namespace has its own
-        // KeyStore aliases and key storage, so different algorithms cannot
-        // interfere.
+        // Each store has its own preferences and KeyStore alias, so different
+        // algorithms cannot interfere.
         expect(
           readA2,
           equals(valueA),
-          reason: 'Namespace A must read its value correctly even after '
+          reason:
+              'Namespace A must read its value correctly even after '
               'namespace B initializes with different algorithms',
         );
         expect(
           readB2,
           equals(valueB),
-          reason: 'Namespace B must read its value correctly even after '
+          reason:
+              'Namespace B must read its value correctly even after '
               'namespace A initializes with different algorithms',
         );
 
@@ -197,211 +210,226 @@ void main() {
         ..verifyRowDoesNotExist(1);
     });
 
-    testWidgets('Enclave requested on iOS Simulator falls back gracefully',
-        skip: !(Platform.isIOS &&
-            Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
-        (tester) async {
-      const storage = FlutterSecureStorage();
-      const key = 'it_enclave_sim_fallback_key';
-      const value = 'sim_fallback_secret';
+    testWidgets(
+      'Enclave requested on iOS Simulator falls back gracefully',
+      skip:
+          !(Platform.isIOS &&
+              Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
+      (tester) async {
+        const storage = FlutterSecureStorage();
+        const key = 'it_enclave_sim_fallback_key';
+        const value = 'sim_fallback_secret';
 
-      // Write with enclave requested
-      await storage.write(
-        key: key,
-        value: value,
-        iOptions: const IOSOptions(useSecureEnclave: true),
-      );
+        // Write with enclave requested
+        await storage.write(
+          key: key,
+          value: value,
+          iOptions: const IOSOptions(useSecureEnclave: true),
+        );
 
-      // Read should succeed due to fallback
-      final readBack = await storage.read(
-        key: key,
-        iOptions: const IOSOptions(useSecureEnclave: true),
-      );
-      expect(readBack, value);
+        // Read should succeed due to fallback
+        final readBack = await storage.read(
+          key: key,
+          iOptions: const IOSOptions(useSecureEnclave: true),
+        );
+        expect(readBack, value);
 
-      // Delete should also succeed
-      await storage.delete(
-        key: key,
-        iOptions: const IOSOptions(useSecureEnclave: true),
-      );
-      final afterDelete = await storage.read(
-        key: key,
-        iOptions: const IOSOptions(useSecureEnclave: true),
-      );
-      expect(afterDelete, isNull);
-    });
+        // Delete should also succeed
+        await storage.delete(
+          key: key,
+          iOptions: const IOSOptions(useSecureEnclave: true),
+        );
+        final afterDelete = await storage.read(
+          key: key,
+          iOptions: const IOSOptions(useSecureEnclave: true),
+        );
+        expect(afterDelete, isNull);
+      },
+    );
 
     testWidgets(
-        'iOS device: baseline (useSecureEnclave=false) write/read/delete',
-        skip: !(Platform.isIOS &&
-            !Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
-        (tester) async {
-      const storage = FlutterSecureStorage();
-      const key = 'it_enclave_device_baseline_key';
-      const value = 'device_baseline_secret';
+      'iOS device: baseline (useSecureEnclave=false) write/read/delete',
+      skip:
+          !(Platform.isIOS &&
+              !Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
+      (tester) async {
+        const storage = FlutterSecureStorage();
+        const key = 'it_enclave_device_baseline_key';
+        const value = 'device_baseline_secret';
 
-      await storage.write(
-        key: key,
-        value: value,
-        iOptions: IOSOptions.defaultOptions,
-      );
+        await storage.write(
+          key: key,
+          value: value,
+          iOptions: IOSOptions.defaultOptions,
+        );
 
-      final readBack = await storage.read(
-        key: key,
-        iOptions: IOSOptions.defaultOptions,
-      );
-      expect(readBack, value);
+        final readBack = await storage.read(
+          key: key,
+          iOptions: IOSOptions.defaultOptions,
+        );
+        expect(readBack, value);
 
-      await storage.delete(
-        key: key,
-        iOptions: IOSOptions.defaultOptions,
-      );
-      final afterDelete = await storage.read(
-        key: key,
-        iOptions: IOSOptions.defaultOptions,
-      );
-      expect(afterDelete, isNull);
-    });
+        await storage.delete(
+          key: key,
+          iOptions: IOSOptions.defaultOptions,
+        );
+        final afterDelete = await storage.read(
+          key: key,
+          iOptions: IOSOptions.defaultOptions,
+        );
+        expect(afterDelete, isNull);
+      },
+    );
 
     testWidgets(
-        'iOS device: useSecureEnclave=true with non-prompting access control (applicationPassword) write/read/delete',
-        skip: !(Platform.isIOS &&
-            !Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
-        (tester) async {
-      const storage = FlutterSecureStorage();
-      const key = 'it_enclave_device_enabled_key';
-      const value = 'device_enclave_secret';
+      'iOS device: useSecureEnclave=true with non-prompting access control (applicationPassword) write/read/delete',
+      skip:
+          !(Platform.isIOS &&
+              !Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
+      (tester) async {
+        const storage = FlutterSecureStorage();
+        const key = 'it_enclave_device_enabled_key';
+        const value = 'device_enclave_secret';
 
-      await storage.write(
-        key: key,
-        value: value,
-        // Use a non-prompting flag to make test automation stable.
-        iOptions: const IOSOptions(
-          useSecureEnclave: true,
-          accessControlFlags: [AccessControlFlag.applicationPassword],
-        ),
-      );
+        await storage.write(
+          key: key,
+          value: value,
+          // Use a non-prompting flag to make test automation stable.
+          iOptions: const IOSOptions(
+            useSecureEnclave: true,
+            accessControlFlags: [AccessControlFlag.applicationPassword],
+          ),
+        );
 
-      final readBack = await storage.read(
-        key: key,
-        iOptions: const IOSOptions(
-          useSecureEnclave: true,
-          accessControlFlags: [AccessControlFlag.applicationPassword],
-        ),
-      );
-      expect(readBack, value);
+        final readBack = await storage.read(
+          key: key,
+          iOptions: const IOSOptions(
+            useSecureEnclave: true,
+            accessControlFlags: [AccessControlFlag.applicationPassword],
+          ),
+        );
+        expect(readBack, value);
 
-      await storage.delete(
-        key: key,
-        iOptions: const IOSOptions(
-          useSecureEnclave: true,
-          accessControlFlags: [AccessControlFlag.applicationPassword],
-        ),
-      );
-      final afterDelete = await storage.read(
-        key: key,
-        iOptions: const IOSOptions(
-          useSecureEnclave: true,
-          accessControlFlags: [AccessControlFlag.applicationPassword],
-        ),
-      );
-      expect(afterDelete, isNull);
-    });
+        await storage.delete(
+          key: key,
+          iOptions: const IOSOptions(
+            useSecureEnclave: true,
+            accessControlFlags: [AccessControlFlag.applicationPassword],
+          ),
+        );
+        final afterDelete = await storage.read(
+          key: key,
+          iOptions: const IOSOptions(
+            useSecureEnclave: true,
+            accessControlFlags: [AccessControlFlag.applicationPassword],
+          ),
+        );
+        expect(afterDelete, isNull);
+      },
+    );
 
     // Note: On real devices, Secure Enclave will prompt for device
     // passcode/biometrics. Enter your device passcode when prompted - it should
     // only prompt once per test run due to LAContext reuse (30 second window).
-    testWidgets('iOS device: readAll with Secure Enclave items',
-        skip: !(Platform.isIOS &&
-            !Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
-        (tester) async {
-      const storage = FlutterSecureStorage();
-      // Use default userPresence (no applicationPassword) - should work with
-      // device passcode
-      const enclaveOptions = IOSOptions(
-        useSecureEnclave: true,
-        // accessControlFlags defaults to userPresence which works with device
-        // passcode
-      );
+    testWidgets(
+      'iOS device: readAll with Secure Enclave items',
+      skip:
+          !(Platform.isIOS &&
+              !Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
+      (tester) async {
+        const storage = FlutterSecureStorage();
+        // Use default userPresence (no applicationPassword) - should work with
+        // device passcode
+        const enclaveOptions = IOSOptions(
+          useSecureEnclave: true,
+          // accessControlFlags defaults to userPresence which works with device
+          // passcode
+        );
 
-      // Write multiple Secure Enclave items
-      await storage.write(
-        key: 'enclave_key1',
-        value: 'enclave_value1',
-        iOptions: enclaveOptions,
-      );
-      await storage.write(
-        key: 'enclave_key2',
-        value: 'enclave_value2',
-        iOptions: enclaveOptions,
-      );
-      await storage.write(
-        key: 'enclave_key3',
-        value: 'enclave_value3',
-        iOptions: enclaveOptions,
-      );
+        // Write multiple Secure Enclave items
+        await storage.write(
+          key: 'enclave_key1',
+          value: 'enclave_value1',
+          iOptions: enclaveOptions,
+        );
+        await storage.write(
+          key: 'enclave_key2',
+          value: 'enclave_value2',
+          iOptions: enclaveOptions,
+        );
+        await storage.write(
+          key: 'enclave_key3',
+          value: 'enclave_value3',
+          iOptions: enclaveOptions,
+        );
 
-      // Read all items
-      final allItems = await storage.readAll(iOptions: enclaveOptions);
+        // Read all items
+        final allItems = await storage.readAll(iOptions: enclaveOptions);
 
-      // Verify all items are returned
-      expect(allItems, isNotNull);
-      final items = allItems;
-      expect(items.length, greaterThanOrEqualTo(3));
-      expect(items['enclave_key1'], 'enclave_value1');
-      expect(items['enclave_key2'], 'enclave_value2');
-      expect(items['enclave_key3'], 'enclave_value3');
+        // Verify all items are returned
+        expect(allItems, isNotNull);
+        final items = allItems;
+        expect(items.length, greaterThanOrEqualTo(3));
+        expect(items['enclave_key1'], 'enclave_value1');
+        expect(items['enclave_key2'], 'enclave_value2');
+        expect(items['enclave_key3'], 'enclave_value3');
 
-      // Cleanup
-      await storage.delete(key: 'enclave_key1', iOptions: enclaveOptions);
-      await storage.delete(key: 'enclave_key2', iOptions: enclaveOptions);
-      await storage.delete(key: 'enclave_key3', iOptions: enclaveOptions);
-    });
+        // Cleanup
+        await storage.delete(key: 'enclave_key1', iOptions: enclaveOptions);
+        await storage.delete(key: 'enclave_key2', iOptions: enclaveOptions);
+        await storage.delete(key: 'enclave_key3', iOptions: enclaveOptions);
+      },
+    );
 
     testWidgets(
-        'iOS device: readAll with mixed Secure Enclave and standard items',
-        skip: !(Platform.isIOS &&
-            !Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
-        (tester) async {
-      const storage = FlutterSecureStorage();
-      // Use default userPresence - should work with device passcode
-      const enclaveOptions = IOSOptions(
-        useSecureEnclave: true,
-      );
-      const standardOptions = IOSOptions.defaultOptions;
+      'iOS device: readAll with mixed Secure Enclave and standard items',
+      skip:
+          !(Platform.isIOS &&
+              !Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
+      (tester) async {
+        const storage = FlutterSecureStorage();
+        // Use default userPresence - should work with device passcode
+        const enclaveOptions = IOSOptions(
+          useSecureEnclave: true,
+        );
+        const standardOptions = IOSOptions.defaultOptions;
 
-      // Write Secure Enclave item
-      await storage.write(
-        key: 'mixed_enclave_key',
-        value: 'enclave_value',
-        iOptions: enclaveOptions,
-      );
+        // Write Secure Enclave item
+        await storage.write(
+          key: 'mixed_enclave_key',
+          value: 'enclave_value',
+          iOptions: enclaveOptions,
+        );
 
-      // Write standard item
-      await storage.write(
-        key: 'mixed_standard_key',
-        value: 'standard_value',
-        iOptions: standardOptions,
-      );
+        // Write standard item
+        await storage.write(
+          key: 'mixed_standard_key',
+          value: 'standard_value',
+          iOptions: standardOptions,
+        );
 
-      // Read all with Secure Enclave enabled - should return both
-      final allItems = await storage.readAll(iOptions: enclaveOptions);
+        // Read all with Secure Enclave enabled - should return both
+        final allItems = await storage.readAll(iOptions: enclaveOptions);
 
-      // Verify both items are returned
-      expect(allItems, isNotNull);
-      final items = allItems;
-      expect(items.containsKey('mixed_enclave_key'), isTrue);
-      expect(items['mixed_enclave_key'], 'enclave_value');
-      expect(items.containsKey('mixed_standard_key'), isTrue);
-      expect(items['mixed_standard_key'], 'standard_value');
+        // Verify both items are returned
+        expect(allItems, isNotNull);
+        final items = allItems;
+        expect(items.containsKey('mixed_enclave_key'), isTrue);
+        expect(items['mixed_enclave_key'], 'enclave_value');
+        expect(items.containsKey('mixed_standard_key'), isTrue);
+        expect(items['mixed_standard_key'], 'standard_value');
 
-      // Cleanup
-      await storage.delete(key: 'mixed_enclave_key', iOptions: enclaveOptions);
-      await storage.delete(
-        key: 'mixed_standard_key',
-        iOptions: standardOptions,
-      );
-    });
+        // Cleanup
+        await storage.delete(
+          key: 'mixed_enclave_key',
+          iOptions: enclaveOptions,
+        );
+        await storage.delete(
+          key: 'mixed_standard_key',
+          iOptions: standardOptions,
+        );
+      },
+    );
 
     // Android Algorithm Migration Tests
     testWidgets(
@@ -427,84 +455,89 @@ void main() {
     );
 
     testWidgets(
-        'iOS device: item written without SE returns null when read with SE',
-        skip: !(Platform.isIOS &&
-            !Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
-        (tester) async {
-      const storage = FlutterSecureStorage();
-      const key = 'it_se_existing_data_key';
-      const value = 'existing_value';
+      'iOS device: item written without SE returns null when read with SE',
+      skip:
+          !(Platform.isIOS &&
+              !Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
+      (tester) async {
+        const storage = FlutterSecureStorage();
+        const key = 'it_se_existing_data_key';
+        const value = 'existing_value';
 
-      // Write without Secure Enclave (standard Keychain).
-      await storage.write(
-        key: key,
-        value: value,
-        iOptions: IOSOptions.defaultOptions,
-      );
+        // Write without Secure Enclave (standard Keychain).
+        await storage.write(
+          key: key,
+          value: value,
+          iOptions: IOSOptions.defaultOptions,
+        );
 
-      // Reading the same key with useSecureEnclave=true should return null
-      // because no SE-wrapped companion key exists for this item.
-      final readWithSE = await storage.read(
-        key: key,
-        iOptions: const IOSOptions(useSecureEnclave: true),
-      );
-      expect(readWithSE, isNull);
+        // Reading the same key with useSecureEnclave=true should return null
+        // because no SE-wrapped companion key exists for this item.
+        final readWithSE = await storage.read(
+          key: key,
+          iOptions: const IOSOptions(useSecureEnclave: true),
+        );
+        expect(readWithSE, isNull);
 
-      // The original item is still accessible via the standard path.
-      final readWithoutSE = await storage.read(
-        key: key,
-        iOptions: IOSOptions.defaultOptions,
-      );
-      expect(readWithoutSE, value);
+        // The original item is still accessible via the standard path.
+        final readWithoutSE = await storage.read(
+          key: key,
+          iOptions: IOSOptions.defaultOptions,
+        );
+        expect(readWithoutSE, value);
 
-      // Cleanup.
-      await storage.delete(key: key, iOptions: IOSOptions.defaultOptions);
-    });
+        // Cleanup.
+        await storage.delete(key: key, iOptions: IOSOptions.defaultOptions);
+      },
+    );
 
-    testWidgets('iOS device: deleteAll with Secure Enclave items',
-        skip: !(Platform.isIOS &&
-            !Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
-        (tester) async {
-      const storage = FlutterSecureStorage();
-      // Use default userPresence - should work with device passcode
-      const enclaveOptions = IOSOptions(
-        useSecureEnclave: true,
-      );
+    testWidgets(
+      'iOS device: deleteAll with Secure Enclave items',
+      skip:
+          !(Platform.isIOS &&
+              !Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')),
+      (tester) async {
+        const storage = FlutterSecureStorage();
+        // Use default userPresence - should work with device passcode
+        const enclaveOptions = IOSOptions(
+          useSecureEnclave: true,
+        );
 
-      // Write multiple Secure Enclave items
-      await storage.write(
-        key: 'delete_all_key1',
-        value: 'value1',
-        iOptions: enclaveOptions,
-      );
-      await storage.write(
-        key: 'delete_all_key2',
-        value: 'value2',
-        iOptions: enclaveOptions,
-      );
+        // Write multiple Secure Enclave items
+        await storage.write(
+          key: 'delete_all_key1',
+          value: 'value1',
+          iOptions: enclaveOptions,
+        );
+        await storage.write(
+          key: 'delete_all_key2',
+          value: 'value2',
+          iOptions: enclaveOptions,
+        );
 
-      // Verify items exist
-      final beforeDelete = await storage.readAll(iOptions: enclaveOptions);
-      expect(beforeDelete, isNotNull);
-      final beforeItems = beforeDelete;
-      expect(beforeItems.containsKey('delete_all_key1'), isTrue);
-      expect(beforeItems.containsKey('delete_all_key2'), isTrue);
+        // Verify items exist
+        final beforeDelete = await storage.readAll(iOptions: enclaveOptions);
+        expect(beforeDelete, isNotNull);
+        final beforeItems = beforeDelete;
+        expect(beforeItems.containsKey('delete_all_key1'), isTrue);
+        expect(beforeItems.containsKey('delete_all_key2'), isTrue);
 
-      // Delete all items
-      await storage.deleteAll(iOptions: enclaveOptions);
+        // Delete all items
+        await storage.deleteAll(iOptions: enclaveOptions);
 
-      // Verify all items are deleted (including wrapped keys)
-      final afterDelete = await storage.readAll(iOptions: enclaveOptions);
-      expect(afterDelete.isEmpty, isTrue);
-      expect(
-        await storage.read(key: 'delete_all_key1', iOptions: enclaveOptions),
-        isNull,
-      );
-      expect(
-        await storage.read(key: 'delete_all_key2', iOptions: enclaveOptions),
-        isNull,
-      );
-    });
+        // Verify all items are deleted (including wrapped keys)
+        final afterDelete = await storage.readAll(iOptions: enclaveOptions);
+        expect(afterDelete.isEmpty, isTrue);
+        expect(
+          await storage.read(key: 'delete_all_key1', iOptions: enclaveOptions),
+          isNull,
+        );
+        expect(
+          await storage.read(key: 'delete_all_key2', iOptions: enclaveOptions),
+          isNull,
+        );
+      },
+    );
   });
 }
 
@@ -525,8 +558,9 @@ class HomePageObject {
   final Finder _addRandomButton = find.byKey(const Key('add_random'));
   final Finder _deleteAllButton = find.byKey(const Key('delete_all'));
   final Finder _popupMenuButton = find.byKey(const Key('popup_menu'));
-  final Finder _protectedDataButton =
-      find.byKey(const Key('is_protected_data_available'));
+  final Finder _protectedDataButton = find.byKey(
+    const Key('is_protected_data_available'),
+  );
 
   Future<void> deleteAll() async {
     await _tap(_popupMenuButton);
@@ -620,7 +654,8 @@ class HomePageObject {
     expect(
       textWidget.data,
       equals(expectedValue),
-      reason: 'Expected "$expectedValue" but found "${textWidget.data}" in row '
+      reason:
+          'Expected "$expectedValue" but found "${textWidget.data}" in row '
           '$index',
     );
   }

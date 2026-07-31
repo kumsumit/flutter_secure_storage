@@ -28,18 +28,15 @@ class HomePage extends StatefulWidget {
 class HomePageState extends State<HomePage> {
   late FlutterSecureStorage _storage;
 
-  final TextEditingController _accountNameController =
-      TextEditingController(text: AppleOptions.defaultAccountName);
+  final TextEditingController _accountNameController = TextEditingController(
+    text: AppleOptions.defaultAccountName,
+  );
 
   final List<_SecItem> _items = [];
   String _errorMessage = '';
 
   void _initializeFlutterSecureStorage(String accountName) {
     _storage = FlutterSecureStorage(
-      aOptions: const AndroidOptions(
-        biometricPromptTitle: 'Flutter Secure Storage Example',
-        biometricPromptSubtitle: 'Please unlock to access data.',
-      ),
       iOptions: IOSOptions(
         accountName: accountName,
         synchronizable: true,
@@ -93,8 +90,9 @@ class HomePageState extends State<HomePage> {
           ..clear()
           ..addAll(all.entries.map((e) => _SecItem(e.key, e.value)))
           ..sort(
-            (a, b) => (int.tryParse(a.key) ?? 10)
-                .compareTo(int.tryParse(b.key) ?? 11),
+            (a, b) => (int.tryParse(a.key) ?? 10).compareTo(
+              int.tryParse(b.key) ?? 11,
+            ),
           );
       });
     } on PlatformException catch (e) {
@@ -147,16 +145,20 @@ class HomePageState extends State<HomePage> {
     if (technicalDetails.contains('BIOMETRIC_UNAVAILABLE')) {
       // Parse specific biometric error
       if (technicalDetails.contains('No biometric hardware')) {
-        userMessage = 'Your device does not have biometric hardware '
+        userMessage =
+            'Your device does not have biometric hardware '
             '(fingerprint or face scanner).';
       } else if (technicalDetails.contains('No fingerprint or face enrolled')) {
-        userMessage = 'No biometric enrolled. Please add a fingerprint or '
+        userMessage =
+            'No biometric enrolled. Please add a fingerprint or '
             'face in your device Settings.';
       } else if (technicalDetails.contains('no PIN, pattern, password')) {
-        userMessage = 'No device security set up. Please set a PIN, '
+        userMessage =
+            'No device security set up. Please set a PIN, '
             'pattern, or password in Settings → Security.';
       } else if (technicalDetails.contains('Android 9')) {
-        userMessage = 'Biometric authentication requires Android 9 or '
+        userMessage =
+            'Biometric authentication requires Android 9 or '
             'higher. Your device is not supported.';
       } else if (technicalDetails.contains('temporarily unavailable')) {
         userMessage =
@@ -440,8 +442,11 @@ class HomePageState extends State<HomePage> {
 
   String _randomValue() {
     final rand = Random();
-    final codeUnits =
-        List<int>.generate(20, (_) => rand.nextInt(26) + 65, growable: false);
+    final codeUnits = List<int>.generate(
+      20,
+      (_) => rand.nextInt(26) + 65,
+      growable: false,
+    );
 
     return String.fromCharCodes(codeUnits);
   }
@@ -449,7 +454,7 @@ class HomePageState extends State<HomePage> {
 
 class _EditItemWidget extends StatelessWidget {
   _EditItemWidget(String text)
-      : _controller = TextEditingController(text: text);
+    : _controller = TextEditingController(text: text);
 
   final TextEditingController _controller;
 
