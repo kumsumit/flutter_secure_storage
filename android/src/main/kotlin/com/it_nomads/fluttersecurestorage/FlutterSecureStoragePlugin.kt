@@ -84,9 +84,12 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
             }
 
             handleMethodCall(call, result, arguments, options, config)
-        } catch (exception: Exception) {
+        } catch (throwable: Throwable) {
+            // Some OEM builds throw Error subclasses (for example NoSuchFieldError)
+            // from Android Keystore framework code. Do not let them escape this
+            // HandlerThread and crash the app process.
             val stackTrace = StringWriter().also {
-                exception.printStackTrace(PrintWriter(it))
+                throwable.printStackTrace(PrintWriter(it))
             }.toString()
             result.error("Exception", "Error while executing method: ${call.method}", stackTrace)
         }

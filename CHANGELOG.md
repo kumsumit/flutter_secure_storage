@@ -1,3 +1,9 @@
+## Unreleased
+
+### Android
+
+- Fixed a fatal app crash when Android Keystore framework code throws `java.lang.Error` subclasses (for example, `NoSuchFieldError` on some OEM builds): the plugin's worker thread now catches `Throwable` and reports a `PlatformException` to Dart instead of killing the process.
+
 ## 11.0.0-beta.1
 
 **Breaking changes**
