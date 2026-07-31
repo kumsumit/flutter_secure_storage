@@ -119,13 +119,20 @@ class FlutterSecureStorage(
 
         return try {
             setRequestStrongBoxBacked(true).build()
-        } catch (exception: Exception) {
+        } catch (throwable: Throwable) {
+            // A few OEM Keystore/StrongBox implementations fail with linkage
+            // errors instead of a GeneralSecurityException. Automatic mode can
+            // still try the regular Android Keystore in that case. Fatal VM
+            // errors must not be converted into a fallback attempt.
+            if (throwable !is Exception && throwable !is LinkageError) {
+                throw throwable
+            }
             if (securityLevel == STORAGE_SECURITY_LEVEL_STRONG_BOX_ONLY) {
-                Log.e(TAG, "StrongBox-backed master key was required but could not be created.", exception)
-                throw exception
+                Log.e(TAG, "StrongBox-backed master key was required but could not be created.", throwable)
+                throw throwable
             }
 
-            Log.w(TAG, "StrongBox-backed master key unavailable; falling back to Android Keystore.", exception)
+            Log.w(TAG, "StrongBox-backed master key unavailable; falling back to Android Keystore.", throwable)
             MasterKey.Builder(context, config.keystoreAlias)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .applyUserAuthentication()

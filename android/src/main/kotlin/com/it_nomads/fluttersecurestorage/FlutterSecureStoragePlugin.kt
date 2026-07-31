@@ -88,10 +88,11 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
             // Some OEM builds throw Error subclasses (for example NoSuchFieldError)
             // from Android Keystore framework code. Do not let them escape this
             // HandlerThread and crash the app process.
-            val stackTrace = StringWriter().also {
-                throwable.printStackTrace(PrintWriter(it))
-            }.toString()
-            result.error("Exception", "Error while executing method: ${call.method}", stackTrace)
+            result.error(
+                "Exception",
+                "Error while executing method: ${call.method}",
+                throwable.stackTraceString(),
+            )
         }
     }
 
@@ -229,11 +230,14 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
             secureStorage = FlutterSecureStorage(applicationContext, options)
             secureStorageOptions = options
             true
-        } catch (exception: Exception) {
+        } catch (throwable: Throwable) {
+            // Keystore framework defects can throw LinkageError subclasses.
+            // Keep those inside the method-channel boundary so Dart receives a
+            // recoverable PlatformException instead of an Android process crash.
             result.error(
                 "RESET_FAILED",
                 "Failed to reset and initialize encrypted preferences",
-                exception.toString(),
+                throwable.stackTraceString(),
             )
             false
         }
@@ -266,6 +270,11 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
             .filter { it.key is String }
             .associate { it.key as String to it.value }
     }
+
+    private fun Throwable.stackTraceString(): String =
+        StringWriter().also {
+            printStackTrace(PrintWriter(it))
+        }.toString()
 
     private class MethodResultWrapper(private val methodResult: Result) : Result {
         private val handler = Handler(Looper.getMainLooper())

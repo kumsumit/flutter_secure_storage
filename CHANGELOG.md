@@ -2,7 +2,8 @@
 
 ### Android
 
-- Fixed a fatal app crash when Android Keystore framework code throws `java.lang.Error` subclasses (for example, `NoSuchFieldError` on some OEM builds): the plugin's worker thread now catches `Throwable` and reports a `PlatformException` to Dart instead of killing the process.
+- Fixed biometric storage failing with `AEADBadTagException` after an app restart on some Xiaomi/AOSP devices ([#1165](https://github.com/juliansteenbakker/flutter_secure_storage/issues/1165)). The Kotlin backend no longer persists the biometric wrapper IV and wrapped application key as separate values; Tink keysets are persisted under a duration-authenticated Android Keystore master key and can be reconstructed in a new process.
+- Fixed a fatal app crash when Android Keystore framework code throws `java.lang.Error` subclasses (for example, `NoSuchFieldError` on some Vivo Android 12 builds, [#1208](https://github.com/juliansteenbakker/flutter_secure_storage/issues/1208)). Keystore failures are contained at initialization and worker-thread boundaries and reported to Dart as a `PlatformException`; automatic StrongBox mode also falls back on OEM linkage failures.
 
 ## 11.0.0-beta.1
 
