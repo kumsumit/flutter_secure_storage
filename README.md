@@ -12,20 +12,22 @@ A Flutter plugin to securely store sensitive data in a key-value pair format usi
 ## Features
 
 - **Secure Data Storage**: Uses Keychain for iOS/macOS, custom secure ciphers with optional biometric authentication for Android, and platform-specific secure mechanisms for Windows, Linux, and Web.
-- **Encryption**: Encrypts data before storing it using platform-specific encryption (RSA OAEP + AES-GCM on Android by default).
+- **Encryption**: Uses AES-256-GCM authenticated encryption backed by Android Keystore.
 - **Cross-Platform**: Works seamlessly across Android, iOS, macOS, Windows, Linux, and Web.
-- **Biometric Authentication**: Optional biometric authentication support on Android (API 23+) and iOS/macOS.
-- **Customizable Options**: Configure encryption algorithms, accessibility attributes, biometric requirements, and more.
+- **Biometric Authentication**: Authentication-bound storage on Android API 28+ and Secure Enclave support on iOS/macOS.
+- **Customizable Options**: Configure namespaces, hardware security, accessibility attributes, biometric requirements, and more.
 
 ## Important notice for Android
-Version 10.0.0 introduces a major security update with custom cipher implementations. The deprecated Jetpack Security library's `encryptedSharedPreferences` is no longer recommended.
+
+This package supports Android API 24 and newer with one modern encrypted
+storage format.
 
 **Key Changes:**
-- New default ciphers: RSA OAEP (key cipher) + AES-GCM (storage cipher)
-- New `AndroidOptions()` and `AndroidOptions.biometric()` constructors
-- Automatic migration from old ciphers via `migrateOnAlgorithmChange` (enabled by default)
-- Minimum Android SDK is now 23 (Android 6.0+)
-- Enhanced biometric authentication with graceful degradation
+- AES-256-GCM authenticated encryption
+- Android Keystore master keys, with optional StrongBox
+- `AndroidOptions()` and `AndroidOptions.biometric()` constructors
+- Namespace isolation for preferences and Keystore aliases
+- No legacy cipher or storage migration
 
 ## Important notice for Web
 flutter_secure_storage only works on HTTPS or localhost environments. [Please see this issue for more information.](https://github.com/juliansteenbakker/flutter_secure_storage/issues/320#issuecomment-976308930)
@@ -55,7 +57,7 @@ Then run:
 ### Create an Instance
 
 ```dart
-// Default secure storage - Uses RSA OAEP + AES-GCM (recommended)
+// Default AES-256-GCM storage backed by Android Keystore
 final storage = FlutterSecureStorage();
 
 // Or with explicit Android options
@@ -138,97 +140,21 @@ Add the following to your `android/app/src/main/AndroidManifest.xml`:
 </application>
 ```
 
-#### Encryption Options (Version 10.0.0+)
+#### Modern Android storage
 
-Version 10 introduces new cipher options and biometric support. Choose the configuration that fits your security requirements:
+Android uses AES-256-GCM authenticated encryption with an AES-256 master key in
+Android Keystore. It has one current storage format; old cipher formats and
+automatic migration are intentionally unsupported.
 
-| Constructor                                                                                              | Key Cipher                            | Storage Cipher    | Biometric Support | Description                                                                                                                                          |
-|----------------------------------------------------------------------------------------------------------|---------------------------------------|-------------------|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `AndroidOptions()`                                                                                       | RSA/ECB/OAEPWithSHA-256AndMGF1Padding | AES/GCM/NoPadding | No                | **Default.** Standard secure storage with RSA OAEP key wrapping. Strong authenticated encryption without biometrics. Recommended for most use cases. |
-| `AndroidOptions.biometric(enforceBiometrics: false)`                                                     | AES/GCM/NoPadding                     | AES/GCM/NoPadding | Optional          | KeyStore-based with optional biometric authentication. Gracefully degrades if biometrics unavailable.                                                |
-| `AndroidOptions.biometric(enforceBiometrics: true)`                                                      | AES/GCM/NoPadding                     | AES/GCM/NoPadding | Required          | KeyStore-based requiring biometric/PIN authentication. Throws error if device security not available. Requires API 28+ for biometric enforcement.    |
-| `AndroidOptions.biometric(enforceBiometrics: true, biometricType: AndroidBiometricType.strongBiometricOnly)` | AES/GCM/NoPadding                 | AES/GCM/NoPadding | Required (strong) | Same as above but restricts authentication to Class 3 (strong) biometrics only. Device credentials (PIN/pattern/password) are rejected.              |
+Use `storageNamespace` to isolate both encrypted preferences and the Keystore
+alias. `AndroidStorageSecurityLevel.automatic` requests StrongBox when the
+device provides it and otherwise uses Android Keystore. Use `strongBoxOnly`
+when fallback is unacceptable.
 
-#### Custom Cipher Combinations (Advanced)
-
-For advanced users, all combinations below are supported using the `AndroidOptions()` constructor with custom parameters:
-
-| Key Cipher Algorithm                    | Storage Cipher Algorithm | Implementation  | Biometric Support                  |
-|-----------------------------------------|--------------------------|-----------------|------------------------------------|
-| `RSA_ECB_PKCS1Padding`                  | `AES_CBC_PKCS7Padding`   | RSA-wrapped AES | No                                 |
-| `RSA_ECB_PKCS1Padding`                  | `AES_GCM_NoPadding`      | RSA-wrapped AES | No                                 |
-| `RSA_ECB_OAEPwithSHA_256andMGF1Padding` | `AES_CBC_PKCS7Padding`   | RSA-wrapped AES | No                                 |
-| `RSA_ECB_OAEPwithSHA_256andMGF1Padding` | `AES_GCM_NoPadding`      | RSA-wrapped AES | No                                 |
-| `AES_GCM_NoPadding`                     | `AES_CBC_PKCS7Padding`   | KeyStore AES    | Optional (via `enforceBiometrics`) |
-| `AES_GCM_NoPadding`                     | `AES_GCM_NoPadding`      | KeyStore AES    | Optional (via `enforceBiometrics`) |
-
-**Notes:**
-- **RSA key ciphers** wrap the AES encryption key with RSA. No biometric support.
-- **AES key cipher** stores the key directly in Android KeyStore. Supports optional biometric authentication.
-- **`enforceBiometrics` parameter** (default: `false`):
-    - `false`: Gracefully degrades if biometrics unavailable
-    - `true`: Strictly requires device security (PIN/pattern/biometric), throws exception if unavailable
-
-#### Migration with Backup Protection
-
-When upgrading between versions that use different encryption algorithms, `flutter_secure_storage` can automatically migrate your data. To protect against data loss during migration (e.g., app crashes), enable backup protection:
-
-```dart
-final storage = FlutterSecureStorage(
-  aOptions: AndroidOptions(
-    migrateWithBackup: true, // Enable crash-resistant migration
-  ),
-);
-```
-
-**How it works:**
-
-1. **Before migration:** Creates backup copies of encrypted data with `_BACKUP` suffix
-2. **During migration:** Tracks progress per-key using `_MIGRATED` markers
-3. **After migration:** Automatically cleans up backup and progress markers
-4. **On crash:** Resumes from last checkpoint without data loss
-
-**When to use:**
-- Recommended for production apps storing critical data (wallet seeds, credentials, etc.)
-- Protects against data loss if migration crashes mid-process
-- Enables safe recovery to pre-migration state if needed
-
-**Default behavior:**
-- `migrateWithBackup: false` (default for backward compatibility)
-- When disabled, automatic migration is turned off to prevent unsafe data loss
-- Enable this option if you want crash-resistant migrations
-
-**Example migration scenarios:**
-```dart
-// Migrating from old to new algorithm with backup protection
-final storage = FlutterSecureStorage(
-  aOptions: AndroidOptions(
-    migrateWithBackup: true,
-    keyCipherAlgorithm: KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
-    storageCipherAlgorithm: StorageCipherAlgorithm.AES_GCM_NoPadding,
-  ),
-);
-
-// Migrating to biometric storage with backup
-final storage = FlutterSecureStorage(
-  aOptions: AndroidOptions.biometric(
-    migrateWithBackup: true,
-    enforceBiometrics: false,
-  ),
-);
-```
-
-**Technical details:**
-- Backup data stored alongside original data in SharedPreferences
-- Per-key progress tracking prevents re-processing already-migrated keys
-- Idempotent: safe to run multiple times
-- Supports all migration paths (non-biometric ↔ biometric, algorithm changes)
-- Automatic cleanup after successful migration
-
-### iOS
 #### Biometric Authentication
 
-Flutter Secure Storage supports biometric authentication (fingerprint, face recognition, etc.) on Android API 23+.
+Basic encrypted storage supports Android API 24 and newer. Authentication-bound
+storage requires Android API 28 or newer.
 
 ##### Required Permissions
 
@@ -238,32 +164,17 @@ To use biometric authentication, add the following permission to your `android/a
 <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
 ```
 
-For devices running Android 9.0 (API 28) and above, `USE_BIOMETRIC` is the recommended permission.
-
-For backward compatibility with devices running Android 6.0 - 8.1 (API 23-27), you may also need:
-
-```xml
-<uses-permission android:name="android.permission.USE_FINGERPRINT"/>
-```
+The plugin manifest already contributes this normal permission to the merged
+application manifest.
 
 ##### Using Biometric Authentication
 
 You can enable biometric authentication using the `AndroidOptions.biometric()` constructor:
 
 ```dart
-// Optional biometric authentication (graceful degradation)
 final storage = FlutterSecureStorage(
   aOptions: AndroidOptions.biometric(
-    enforceBiometrics: false, // Default - works without biometrics
-    biometricPromptTitle: 'Unlock to access your data',
-    biometricPromptSubtitle: 'Use fingerprint or face unlock',
-  ),
-);
-
-// Strict biometric enforcement (requires device security)
-final storage = FlutterSecureStorage(
-  aOptions: AndroidOptions.biometric(
-    enforceBiometrics: true, // Requires biometric/PIN/pattern
+    enforceBiometrics: true,
     biometricPromptTitle: 'Biometric authentication required',
   ),
 );
@@ -280,36 +191,24 @@ final storage = FlutterSecureStorage(
 
 **Note:** When `enforceBiometrics: true`, the app will throw an exception if the device has no PIN, pattern, password, or biometric enrolled.
 
-**`biometricType`** controls which authentication methods satisfy the biometric prompt (only applies when using `AES_GCM_NoPadding` key cipher):
+**`biometricType`** controls which methods satisfy authentication:
 
 | Value                                       | Accepted methods                                        |
 |---------------------------------------------|---------------------------------------------------------|
 | `AndroidBiometricType.biometricOrDeviceCredential` | Class 3 biometrics **or** PIN / pattern / password (default) |
 | `AndroidBiometricType.strongBiometricOnly`  | Class 3 (strong) biometrics only — credentials rejected |
 
-> **Note:** On Android 10 (API level 29) and lower, `setAllowedAuthenticators` is unavailable. Device credentials (PIN/pattern/password) are not accepted on these versions — only Class 3 (strong) biometrics work, regardless of the `biometricType` setting.
+On API 28, the platform prompt supports biometrics only. API 29 adds device
+credential fallback. API 30 and newer enforce the selected authenticator types
+in both the prompt and Keystore key.
 
 ##### Requirements
 
-- **API Level**: Android 6.0 (API 23) minimum for basic encryption
+- **API Level**: Android 7.0 (API 24) minimum for basic encryption
 - **API Level**: Android 9.0 (API 28) minimum for enforced biometric authentication
 - **API Level**: Android 11.0 (API 30) minimum for `AndroidBiometricType.strongBiometricOnly` to be fully enforced
 - **Device Security**: Device must have a PIN, pattern, password, or biometric enrolled (when using `enforceBiometrics: true`)
 - **Permissions**: `USE_BIOMETRIC` permission in AndroidManifest.xml
-
-#### Migration from Version 9.x
-
-Version 10 automatically migrates data from older cipher algorithms when `migrateOnAlgorithmChange: true` (enabled by default). If you were using `encryptedSharedPreferences` in version 9, the data will be automatically migrated to the new cipher implementation.
-
-To disable automatic migration:
-
-```dart
-final storage = FlutterSecureStorage(
-  aOptions: AndroidOptions(
-    migrateOnAlgorithmChange: false,
-  ),
-);
-```
 
 ### macOS & iOS
 

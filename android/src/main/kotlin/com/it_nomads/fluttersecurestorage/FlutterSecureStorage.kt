@@ -4,29 +4,22 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
-import android.util.Base64
 import android.util.Log
-import com.it_nomads.fluttersecurestorage.ciphers.StorageCipher
-import com.it_nomads.fluttersecurestorage.ciphers.StorageCipherFactory
 import com.it_nomads.fluttersecurestorage.crypto.EncryptedSharedPreferences
 import com.it_nomads.fluttersecurestorage.crypto.MasterKey
-import java.nio.charset.StandardCharsets
+import com.it_nomads.fluttersecurestorage.crypto.MasterKeys
 
 class FlutterSecureStorage(
     context: Context,
     options: Map<String, Any?>,
 ) {
-    private var preferencesKeyPrefix = options.stringOption(PREF_OPTION_PREFIX, DEFAULT_KEY_PREFIX)
+    private val config = AndroidStorageConfig.from(options)
+    private val preferencesKeyPrefix = config.preferencesKeyPrefix
     private val encryptedPreferences: SharedPreferences
 
     init {
-        val sharedPreferencesName = options.stringOption(PREF_OPTION_NAME, DEFAULT_PREF_NAME)
-        val deleteOnFailure = (options[PREF_OPTION_DELETE_ON_FAILURE] as? String).toBoolean()
         encryptedPreferences = getEncryptedSharedPreferences(
-            deleteOnFailure = deleteOnFailure,
-            options = options,
             context = context.applicationContext,
-            sharedPreferencesName = sharedPreferencesName,
         )
     }
 
@@ -48,8 +41,9 @@ class FlutterSecureStorage(
 
     fun readAll(): Map<String, String> =
         encryptedPreferences.all.mapNotNull { (key, value) ->
-            if (key.startsWith(preferencesKeyPrefix) && value is String) {
-                key.removePrefix("$preferencesKeyPrefix" + "_") to value
+            val prefix = "${preferencesKeyPrefix}_"
+            if (key.startsWith(prefix) && value is String) {
+                key.removePrefix(prefix) to value
             } else {
                 null
             }
@@ -58,34 +52,29 @@ class FlutterSecureStorage(
     private fun addPrefixToKey(key: String?): String = "${preferencesKeyPrefix}_$key"
 
     private fun getEncryptedSharedPreferences(
-        deleteOnFailure: Boolean,
-        options: Map<String, Any?>,
         context: Context,
-        sharedPreferencesName: String,
     ): SharedPreferences =
         try {
-            initializeEncryptedSharedPreferencesManager(context, sharedPreferencesName, options).also { target ->
-                if (!target.getBoolean(PREF_KEY_MIGRATED, false)) {
-                    migrateToEncryptedPreferences(
-                        context = context,
-                        sharedPreferencesName = sharedPreferencesName,
-                        target = target,
-                        deleteOnFailure = deleteOnFailure,
-                        options = options,
-                    )
-                }
-            }
+            initializeEncryptedSharedPreferencesManager(context)
         } catch (exception: Exception) {
-            if (!deleteOnFailure) {
+            if (!config.resetOnError) {
                 Log.w(TAG, "initialization failed, resetOnError false, so throwing exception.", exception)
                 throw exception
             }
 
             Log.w(TAG, "initialization failed, resetting storage", exception)
-            context.getSharedPreferences(sharedPreferencesName, Context.MODE_PRIVATE).edit().clear().apply()
+            MasterKeys.remove(config.keystoreAlias)
+            check(
+                context.getSharedPreferences(
+                    config.sharedPreferencesName,
+                    Context.MODE_PRIVATE,
+                ).edit().clear().commit(),
+            ) {
+                "Failed to reset encrypted preferences."
+            }
 
             try {
-                initializeEncryptedSharedPreferencesManager(context, sharedPreferencesName, options)
+                initializeEncryptedSharedPreferencesManager(context)
             } catch (resetException: Exception) {
                 Log.e(TAG, "initialization after reset failed", resetException)
                 throw resetException
@@ -94,16 +83,14 @@ class FlutterSecureStorage(
 
     private fun initializeEncryptedSharedPreferencesManager(
         context: Context,
-        sharedPreferencesName: String,
-        options: Map<String, Any?>,
     ): SharedPreferences {
-        val masterKey = masterKeyBuilder(context, options)
+        val masterKey = MasterKey.Builder(context, config.keystoreAlias)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .buildWithBestAvailableSecurity(context, options)
+            .buildWithBestAvailableSecurity(context)
 
         return EncryptedSharedPreferences.create(
             context = context,
-            fileName = sharedPreferencesName,
+            fileName = config.sharedPreferencesName,
             masterKey = masterKey,
             prefKeyEncryptionScheme = EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             prefValueEncryptionScheme = EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
@@ -112,16 +99,12 @@ class FlutterSecureStorage(
 
     private fun MasterKey.Builder.buildWithBestAvailableSecurity(
         context: Context,
-        options: Map<String, Any?>,
     ): MasterKey {
         // Bind the key to recent user authentication (biometric / device
         // credential) at the hardware level when requested.
-        applyUserAuthentication(options)
+        applyUserAuthentication()
 
-        val securityLevel = options.stringOption(
-            PREF_OPTION_STORAGE_SECURITY_LEVEL,
-            STORAGE_SECURITY_LEVEL_AUTOMATIC,
-        )
+        val securityLevel = config.storageSecurityLevel
         val shouldRequestStrongBox = securityLevel != STORAGE_SECURITY_LEVEL_ANDROID_KEYSTORE &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
             context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
@@ -137,122 +120,25 @@ class FlutterSecureStorage(
             }
 
             Log.w(TAG, "StrongBox-backed master key unavailable; falling back to Android Keystore.", exception)
-            masterKeyBuilder(context, options)
+            MasterKey.Builder(context, config.keystoreAlias)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .applyUserAuthentication(options)
+                .applyUserAuthentication()
                 .build()
         }
     }
 
-    /// Creates a master-key builder using a caller-supplied Keystore alias when
-    /// provided, so a store can isolate its master key from the shared default.
-    private fun masterKeyBuilder(
-        context: Context,
-        options: Map<String, Any?>,
-    ): MasterKey.Builder {
-        val alias = options.stringOption(PREF_OPTION_KEYSTORE_ALIAS, "")
-        return if (alias.isNotEmpty()) {
-            MasterKey.Builder(context, alias)
-        } else {
-            MasterKey.Builder(context)
-        }
+    private fun MasterKey.Builder.applyUserAuthentication(): MasterKey.Builder = apply {
+        if (!config.userAuthenticationRequired) return@apply
+        setUserAuthenticationRequired(
+            true,
+            config.userAuthenticationValidityDurationSeconds,
+            config.strongBiometricOnly,
+        )
     }
-
-    /// Mirrors the [AndroidOptions.userAuthenticationRequired] flag onto the
-    /// master key builder. When enabled, the Keystore refuses to use the key
-    /// unless the user authenticated within the configured validity window.
-    private fun MasterKey.Builder.applyUserAuthentication(
-        options: Map<String, Any?>,
-    ): MasterKey.Builder = apply {
-        val required = options.stringOption(
-            PREF_OPTION_USER_AUTH_REQUIRED,
-            "false",
-        ).toBoolean()
-        if (!required) return@apply
-        val validitySeconds = options.intOption(
-            PREF_OPTION_USER_AUTH_VALIDITY_SECONDS,
-            DEFAULT_USER_AUTH_VALIDITY_SECONDS,
-        ).coerceAtLeast(1)
-        setUserAuthenticationRequired(true, validitySeconds)
-    }
-
-    private fun migrateToEncryptedPreferences(
-        context: Context,
-        sharedPreferencesName: String,
-        target: SharedPreferences,
-        deleteOnFailure: Boolean,
-        options: Map<String, Any?>,
-    ) {
-        val source = context.getSharedPreferences(sharedPreferencesName, Context.MODE_PRIVATE)
-        val sourceEntries = source.all
-        if (sourceEntries.isEmpty()) return
-
-        var successful = 0
-        var failed = 0
-
-        try {
-            val cipher = StorageCipherFactory(source, options).getSavedStorageCipher(context)
-
-            sourceEntries.forEach { (key, value) ->
-                if (key.startsWith(preferencesKeyPrefix) && value is String) {
-                    try {
-                        target.edit().putString(key, decryptValue(value, cipher)).apply()
-                        source.edit().remove(key).apply()
-                        successful++
-                    } catch (exception: Exception) {
-                        Log.e(TAG, "Migration failed for one stored value.", exception)
-                        failed++
-                        if (deleteOnFailure) {
-                            source.edit().remove(key).apply()
-                        }
-                    }
-                }
-            }
-
-            if (successful > 0) Log.i(TAG, "Successfully migrated $successful keys.")
-            if (failed > 0) Log.w(TAG, "Failed to migrate $failed keys.")
-            if (failed == 0 || deleteOnFailure) {
-                target.edit().putBoolean(PREF_KEY_MIGRATED, true).apply()
-            }
-        } catch (exception: Exception) {
-            Log.e(TAG, "Migration failed due to initialisation error.", exception)
-            if (deleteOnFailure) {
-                target.edit().putBoolean(PREF_KEY_MIGRATED, true).apply()
-            }
-        }
-    }
-
-    private fun decryptValue(value: String, cipher: StorageCipher): String {
-        val data = Base64.decode(value, Base64.DEFAULT)
-        return String(cipher.decrypt(data), StandardCharsets.UTF_8)
-    }
-
-    private fun Map<String, Any?>.stringOption(key: String, defaultValue: String): String =
-        (this[key] as? String)?.takeIf { it.isNotEmpty() } ?: defaultValue
-
-    private fun Map<String, Any?>.intOption(key: String, defaultValue: Int): Int =
-        when (val raw = this[key]) {
-            is Number -> raw.toInt()
-            is String -> raw.toIntOrNull() ?: defaultValue
-            else -> defaultValue
-        }
 
     private companion object {
         const val TAG = "FlutterSecureStorage"
-        const val DEFAULT_PREF_NAME = "FlutterSecureStorage"
-        const val DEFAULT_KEY_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIHNlY3VyZSBzdG9yYWdlCg"
-        const val PREF_OPTION_NAME = "sharedPreferencesName"
-        const val PREF_OPTION_PREFIX = "preferencesKeyPrefix"
-        const val PREF_OPTION_DELETE_ON_FAILURE = "resetOnError"
-        const val PREF_OPTION_STORAGE_SECURITY_LEVEL = "storageSecurityLevel"
-        const val STORAGE_SECURITY_LEVEL_AUTOMATIC = "automatic"
         const val STORAGE_SECURITY_LEVEL_STRONG_BOX_ONLY = "strongBoxOnly"
         const val STORAGE_SECURITY_LEVEL_ANDROID_KEYSTORE = "androidKeystore"
-        const val PREF_OPTION_USER_AUTH_REQUIRED = "userAuthenticationRequired"
-        const val PREF_OPTION_USER_AUTH_VALIDITY_SECONDS =
-            "userAuthenticationValidityDurationSeconds"
-        const val DEFAULT_USER_AUTH_VALIDITY_SECONDS = 300
-        const val PREF_OPTION_KEYSTORE_ALIAS = "keystoreAlias"
-        const val PREF_KEY_MIGRATED = "preferencesMigrated"
     }
 }

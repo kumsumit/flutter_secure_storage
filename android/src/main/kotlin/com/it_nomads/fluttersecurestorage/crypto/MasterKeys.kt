@@ -28,6 +28,19 @@ object MasterKeys {
         return keyGenParameterSpec.keystoreAlias
     }
 
+    @JvmStatic
+    @Throws(GeneralSecurityException::class, IOException::class)
+    fun remove(keyAlias: String) {
+        synchronized(lock) {
+            KeyStore.getInstance(ANDROID_KEYSTORE).apply {
+                load(null)
+                if (containsAlias(keyAlias)) {
+                    deleteEntry(keyAlias)
+                }
+            }
+        }
+    }
+
     @VisibleForTesting
     internal fun validate(spec: KeyGenParameterSpec) {
         require(spec.keySize == KEY_SIZE) {

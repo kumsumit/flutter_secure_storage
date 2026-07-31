@@ -194,7 +194,8 @@ abstract class AppleOptions extends Options {
   ///   Enclave-backed private key. Access is gated by [accessControlFlags]
   ///   (e.g. Face ID/Touch ID/passcode via `userPresence`).
   /// - If the device or simulator does not support Secure Enclave or unwrap
-  ///   fails, the plugin gracefully falls back to standard Keychain storage
+  ///   fails, the operation returns a decoding error instead of treating the
+  ///   Secure Enclave envelope as plaintext
   ///   using your configured [accessControlFlags].
   /// - iCloud Keychain sync (synchronizable) is ignored when using Enclave
   ///   since keys are device-bound.

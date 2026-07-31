@@ -12,15 +12,13 @@ void main() {
   group('Secure Storage Tests', () {
     testWidgets(
       'Android: deleteAll() must not clear other '
-      'sharedPreferencesName namespace (regression #1023)',
+      'storage namespace (regression #1023)',
       (tester) async {
         // This is a plugin-level regression test for:
         // https://github.com/juliansteenbakker/flutter_secure_storage/issues/1023
         //
-        // The Android implementation must isolate namespaces created via
-        // AndroidOptions.sharedPreferencesName. A deleteAll() issued against
-        // one
-        // namespace must not delete keys stored in another namespace.
+        // A deleteAll() issued against one namespace must not delete keys
+        // stored in another namespace.
         final pageObject = await _setupHomePage(tester);
 
         // Use the app's popup menu path to ensure the plugin is initialized and
@@ -29,12 +27,12 @@ void main() {
 
         const storageA = FlutterSecureStorage(
           aOptions: AndroidOptions(
-            sharedPreferencesName: 'namespace_a',
+            storageNamespace: 'namespace_a',
           ),
         );
         const storageB = FlutterSecureStorage(
           aOptions: AndroidOptions(
-            sharedPreferencesName: 'namespace_b',
+            storageNamespace: 'namespace_b',
           ),
         );
 
@@ -61,33 +59,23 @@ void main() {
     );
 
     testWidgets(
-      'Android: isolated stores with different cipher algorithms must not '
-      'interfere',
+      'Android: isolated storage namespaces must not interfere',
       (tester) async {
-        // This test verifies full isolation of data preferences, config
-        // markers, KeyStore aliases, and key storage.
-        // Different namespaces can safely use different cipher algorithms
-        // without conflicting KeyStore entries or wrapped keys.
+        // This verifies isolation of encrypted preferences and
+        // Keystore aliases.
         final pageObject = await _setupHomePage(tester);
         await pageObject.deleteAll();
 
-        // Use different key cipher algorithms per namespace to test isolation
         const storageA = FlutterSecureStorage(
           aOptions: AndroidOptions(
-            sharedPreferencesName: 'namespace_alg_a',
+            storageNamespace: 'namespace_a',
             preferencesKeyPrefix: 'namespace_alg_a',
-            keystoreAlias: 'namespace_alg_a',
-            keyCipherAlgorithm:
-                KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
-            storageCipherAlgorithm: StorageCipherAlgorithm.AES_GCM_NoPadding,
           ),
         );
-        // storageB uses the default algorithms, isolated from storageA.
         const storageB = FlutterSecureStorage(
           aOptions: AndroidOptions(
-            sharedPreferencesName: 'namespace_alg_b',
+            storageNamespace: 'namespace_b',
             preferencesKeyPrefix: 'namespace_alg_b',
-            keystoreAlias: 'namespace_alg_b',
           ),
         );
 
@@ -95,7 +83,7 @@ void main() {
         const valueA = 'value_algorithm_a';
         const valueB = 'value_algorithm_b';
 
-        // Arrange: Write values to both namespaces with different algorithms
+        // Arrange: write values to both namespaces.
         await storageA.write(key: key, value: valueA);
         await storageB.write(key: key, value: valueB);
 
@@ -103,21 +91,18 @@ void main() {
         expect(await storageA.read(key: key), equals(valueA));
         expect(await storageB.read(key: key), equals(valueB));
 
-        // Act: Force re-initialization by reading again (triggers config
-        // marker checks). This simulates what happens when switching between
-        // namespaces.
+        // Act: switch between namespaces repeatedly.
         final readA2 = await storageA.read(key: key);
         final readB2 = await storageB.read(key: key);
 
         // Assert: Both namespaces should still read their correct values.
-        // Each store has its own preferences and KeyStore alias, so different
-        // algorithms cannot interfere.
+        // Each store has its own preferences and Keystore alias.
         expect(
           readA2,
           equals(valueA),
           reason:
               'Namespace A must read its value correctly even after '
-              'namespace B initializes with different algorithms',
+              'namespace B is accessed',
         );
         expect(
           readB2,
@@ -209,6 +194,31 @@ void main() {
         ..verifyRowDoesNotExist(0)
         ..verifyRowDoesNotExist(1);
     });
+
+    testWidgets(
+      'iOS: delete ignores changed synchronizable and accessibility options',
+      skip: !Platform.isIOS,
+      (_) async {
+        const storage = FlutterSecureStorage();
+        const key = 'it_delete_changed_keychain_options';
+        const writeOptions = IOSOptions(
+          accessibility: KeychainAccessibility.first_unlock,
+        );
+        const deleteOptions = IOSOptions(
+          synchronizable: true,
+        );
+
+        await storage.write(
+          key: key,
+          value: 'value',
+          iOptions: writeOptions,
+        );
+
+        await storage.delete(key: key, iOptions: deleteOptions);
+
+        expect(await storage.read(key: key, iOptions: writeOptions), isNull);
+      },
+    );
 
     testWidgets(
       'Enclave requested on iOS Simulator falls back gracefully',
@@ -431,13 +441,10 @@ void main() {
       },
     );
 
-    // Android Algorithm Migration Tests
     testWidgets(
-      'Android: data remains readable without migration when algorithms '
-      'unchanged',
+      'Android: data remains readable with the current storage format',
       skip: !Platform.isAndroid,
       (tester) async {
-        // Uses all defaults (OAEP/GCM + migrateOnAlgorithmChange: true)
         const storage = FlutterSecureStorage();
 
         await storage.deleteAll();
@@ -446,7 +453,6 @@ void main() {
           value: 'no_migration_value',
         );
 
-        // Read back with same options — no migration should occur
         final value = await storage.read(key: 'no_migration_key');
         expect(value, 'no_migration_value');
 

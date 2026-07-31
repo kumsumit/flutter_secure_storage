@@ -367,44 +367,46 @@ void main() {
       const options = AndroidOptions.defaultOptions;
 
       expect(options.toMap(), {
-        'encryptedSharedPreferences': 'false',
-        'resetOnError': 'false',
-        'keyCipherAlgorithm': 'RSA_ECB_PKCS1Padding',
-        'storageCipherAlgorithm': 'AES_CBC_PKCS7Padding',
+        'resetOnError': 'true',
+        'enforceBiometrics': 'false',
+        'biometricType': 'biometricOrDeviceCredential',
+        'requireBiometricConfirmation': 'true',
         'storageSecurityLevel': 'automatic',
-        'userAuthenticationRequired': 'false',
         'userAuthenticationValidityDurationSeconds': '300',
-        'sharedPreferencesName': '',
         'preferencesKeyPrefix': '',
-        'keystoreAlias': '',
+        'storageNamespace': '',
+        'biometricPromptTitle': 'Authenticate to access secure storage',
+        'biometricPromptSubtitle': 'Use biometrics or device credentials',
+        'biometricPromptNegativeButton': 'Cancel',
       });
     });
 
     test('AndroidOptions with custom values', () {
       const options = AndroidOptions(
-        resetOnError: true,
-        keyCipherAlgorithm:
-            KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
-        storageCipherAlgorithm: StorageCipherAlgorithm.AES_GCM_NoPadding,
+        enforceBiometrics: true,
+        biometricType: AndroidBiometricType.strongBiometricOnly,
+        requireBiometricConfirmation: false,
         storageSecurityLevel: AndroidStorageSecurityLevel.strongBoxOnly,
-        userAuthenticationRequired: true,
         userAuthenticationValidityDurationSeconds: 30,
-        sharedPreferencesName: 'customPrefs',
         preferencesKeyPrefix: 'customPrefix',
-        keystoreAlias: 'customAlias',
+        storageNamespace: 'customNamespace',
+        biometricPromptTitle: 'Custom title',
+        biometricPromptSubtitle: 'Custom subtitle',
+        biometricPromptNegativeButton: 'No',
       );
 
       expect(options.toMap(), {
-        'encryptedSharedPreferences': 'false',
         'resetOnError': 'true',
-        'keyCipherAlgorithm': 'RSA_ECB_OAEPwithSHA_256andMGF1Padding',
-        'storageCipherAlgorithm': 'AES_GCM_NoPadding',
+        'enforceBiometrics': 'true',
+        'biometricType': 'strongBiometricOnly',
+        'requireBiometricConfirmation': 'false',
         'storageSecurityLevel': 'strongBoxOnly',
-        'userAuthenticationRequired': 'true',
         'userAuthenticationValidityDurationSeconds': '30',
-        'sharedPreferencesName': 'customPrefs',
         'preferencesKeyPrefix': 'customPrefix',
-        'keystoreAlias': 'customAlias',
+        'storageNamespace': 'customNamespace',
+        'biometricPromptTitle': 'Custom title',
+        'biometricPromptSubtitle': 'Custom subtitle',
+        'biometricPromptNegativeButton': 'No',
       });
     });
 
@@ -412,33 +414,36 @@ void main() {
       const original = AndroidOptions.defaultOptions;
 
       final copied = original.copyWith(
-        resetOnError: true,
-        sharedPreferencesName: 'newPrefs',
+        resetOnError: false,
+        storageNamespace: 'newNamespace',
       );
 
       expect(copied.toMap(), {
-        'encryptedSharedPreferences': 'false',
-        'resetOnError': 'true',
-        'keyCipherAlgorithm': 'RSA_ECB_PKCS1Padding',
-        'storageCipherAlgorithm': 'AES_CBC_PKCS7Padding',
+        'resetOnError': 'false',
+        'enforceBiometrics': 'false',
+        'biometricType': 'biometricOrDeviceCredential',
+        'requireBiometricConfirmation': 'true',
         'storageSecurityLevel': 'automatic',
-        'userAuthenticationRequired': 'false',
         'userAuthenticationValidityDurationSeconds': '300',
-        'sharedPreferencesName': 'newPrefs',
         'preferencesKeyPrefix': '',
-        'keystoreAlias': '',
+        'storageNamespace': 'newNamespace',
+        'biometricPromptTitle': 'Authenticate to access secure storage',
+        'biometricPromptSubtitle': 'Use biometrics or device credentials',
+        'biometricPromptNegativeButton': 'Cancel',
       });
     });
 
-    test('copyWith should override user-authentication options', () {
+    test('copyWith should override biometric options', () {
       const original = AndroidOptions.defaultOptions;
 
       final copied = original.copyWith(
-        userAuthenticationRequired: true,
+        enforceBiometrics: true,
+        biometricType: AndroidBiometricType.strongBiometricOnly,
         userAuthenticationValidityDurationSeconds: 45,
       );
 
-      expect(copied.toMap()['userAuthenticationRequired'], 'true');
+      expect(copied.toMap()['enforceBiometrics'], 'true');
+      expect(copied.toMap()['biometricType'], 'strongBiometricOnly');
       expect(
         copied.toMap()['userAuthenticationValidityDurationSeconds'],
         '45',
@@ -446,32 +451,25 @@ void main() {
     });
 
     test('copyWith without changes should retain original values', () {
-      const original = AndroidOptions(
-        resetOnError: true,
-        keyCipherAlgorithm:
-            KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
-        storageCipherAlgorithm: StorageCipherAlgorithm.AES_GCM_NoPadding,
-      );
+      const original = AndroidOptions.biometric();
 
       final copied = original.copyWith();
 
       expect(copied.toMap(), original.toMap());
     });
 
-    test('AndroidOptions handles null sharedPreferencesName and '
+    test('AndroidOptions handles null storageNamespace and '
         'preferencesKeyPrefix', () {
       const options = AndroidOptions.defaultOptions;
 
-      expect(options.toMap()['sharedPreferencesName'], '');
+      expect(options.toMap()['storageNamespace'], '');
       expect(options.toMap()['preferencesKeyPrefix'], '');
     });
 
-    test('Deprecated encryptedSharedPreferences still functions', () {
-      // Ignore for test
-      // ignore: deprecated_member_use_from_same_package
-      const options = AndroidOptions(encryptedSharedPreferences: true);
+    test('biometric constructor enables authentication by default', () {
+      const options = AndroidOptions.biometric();
 
-      expect(options.toMap()['encryptedSharedPreferences'], 'true');
+      expect(options.toMap()['enforceBiometrics'], 'true');
     });
   });
 
@@ -539,39 +537,16 @@ void main() {
     test('Default WindowsOptions should have correct default values', () {
       const options = WindowsOptions.defaultOptions;
 
-      expect(options.toMap(), {
-        'useBackwardCompatibility': 'false',
-      });
+      expect(options.toMap(), isEmpty);
     });
 
-    test('WindowsOptions with useBackwardCompatibility set to true', () {
-      const options = WindowsOptions(useBackwardCompatibility: true);
-
-      expect(options.toMap(), {
-        'useBackwardCompatibility': 'true',
-      });
-    });
-
-    test('WindowsOptions copyWith should override values correctly', () {
+    test('WindowsOptions copyWith retains empty modern options', () {
       const original = WindowsOptions.defaultOptions;
 
-      final copied = original.copyWith(useBackwardCompatibility: true);
+      final copied = original.copyWith();
 
-      expect(copied.toMap(), {
-        'useBackwardCompatibility': 'true',
-      });
+      expect(copied.toMap(), isEmpty);
     });
-
-    test(
-      'WindowsOptions copyWith without changes should retain original values',
-      () {
-        const original = WindowsOptions(useBackwardCompatibility: true);
-
-        final copied = original.copyWith();
-
-        expect(copied.toMap(), original.toMap());
-      },
-    );
 
     test('WindowsOptions defaultOptions matches default constructor', () {
       const defaultOptions = WindowsOptions.defaultOptions;
@@ -591,6 +566,7 @@ void main() {
         'accountName': 'flutter_secure_storage_service',
         'accessibility': 'unlocked',
         'synchronizable': 'false',
+        'useSecureEnclave': 'false',
       });
     });
 
@@ -631,6 +607,7 @@ void main() {
         'accessControlFlags': [
           AccessControlFlag.biometryCurrentSet.name,
         ].toString(),
+        'useSecureEnclave': 'false',
       });
     });
 
@@ -654,6 +631,7 @@ void main() {
         'accountName': 'flutter_secure_storage_service',
         'accessibility': 'unlocked',
         'synchronizable': 'false',
+        'useSecureEnclave': 'false',
         'usesDataProtectionKeychain': 'true',
       });
     });
@@ -672,6 +650,7 @@ void main() {
         'groupId': 'group.mac.example',
         'accessibility': 'first_unlock',
         'synchronizable': 'true',
+        'useSecureEnclave': 'false',
         'usesDataProtectionKeychain': 'false',
       });
     });

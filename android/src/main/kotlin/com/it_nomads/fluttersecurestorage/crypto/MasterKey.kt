@@ -52,6 +52,7 @@ class MasterKey internal constructor(
         private var keyGenParameterSpec: KeyGenParameterSpec? = null
         private var keyScheme: KeyScheme? = null
         private var authenticationRequired = false
+        private var strongBiometricOnly = false
         private var userAuthenticationValidityDurationSeconds = defaultAuthenticationValidityDurationSeconds
         private var requestStrongBoxBacked = false
 
@@ -67,9 +68,11 @@ class MasterKey internal constructor(
         fun setUserAuthenticationRequired(
             authenticationRequired: Boolean,
             @IntRange(from = 1) userAuthenticationValidityDurationSeconds: Int,
+            strongBiometricOnly: Boolean = false,
         ): Builder = apply {
             this.authenticationRequired = authenticationRequired
             this.userAuthenticationValidityDurationSeconds = userAuthenticationValidityDurationSeconds
+            this.strongBiometricOnly = strongBiometricOnly
         }
 
         fun setRequestStrongBoxBacked(requestStrongBoxBacked: Boolean): Builder = apply {
@@ -107,7 +110,12 @@ class MasterKey internal constructor(
                         Api30Impl.setUserAuthenticationParameters(
                             keyGenBuilder,
                             userAuthenticationValidityDurationSeconds,
-                            KeyProperties.AUTH_DEVICE_CREDENTIAL or KeyProperties.AUTH_BIOMETRIC_STRONG,
+                            if (strongBiometricOnly) {
+                                KeyProperties.AUTH_BIOMETRIC_STRONG
+                            } else {
+                                KeyProperties.AUTH_DEVICE_CREDENTIAL or
+                                    KeyProperties.AUTH_BIOMETRIC_STRONG
+                            },
                         )
                     } else {
                         @Suppress("DEPRECATION")

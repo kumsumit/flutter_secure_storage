@@ -28,6 +28,11 @@ android {
     defaultConfig {
         minSdk = 24
     }
+
+    lint {
+        abortOnError = true
+        checkReleaseBuilds = true
+    }
 }
 
 dependencies {

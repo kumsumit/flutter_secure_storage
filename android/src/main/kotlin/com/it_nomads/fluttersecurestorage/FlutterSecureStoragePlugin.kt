@@ -3,6 +3,7 @@ package com.it_nomads.fluttersecurestorage
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.os.SystemClock
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -18,6 +19,10 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
     private var workerThread: HandlerThread? = null
     private var workerThreadHandler: Handler? = null
     private var binding: FlutterPlugin.FlutterPluginBinding? = null
+    private var authenticatedOptions: Map<String, Any?>? = null
+    private var authenticatedAtElapsedRealtime = 0L
+    private var pendingAuthenticationOptions: Map<String, Any?>? = null
+    private val pendingAuthenticationCalls = mutableListOf<PendingMethodCall>()
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         this.binding = binding
@@ -37,6 +42,10 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
         channel = null
         secureStorage = null
         secureStorageOptions = null
+        authenticatedOptions = null
+        authenticatedAtElapsedRealtime = 0L
+        pendingAuthenticationOptions = null
+        pendingAuthenticationCalls.clear()
         this.binding = null
     }
 
@@ -53,7 +62,28 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
 
     private fun handleMethodCallSafely(call: MethodCall, result: Result) {
         try {
-            handleMethodCall(call, result)
+            val arguments = call.arguments.asStringAnyMap().takeIf {
+                call.arguments != null
+            }
+            if (arguments == null) {
+                result.error("InvalidArgument", "No arguments passed to method call", null)
+                return
+            }
+
+            val options = arguments["options"].asStringAnyMap()
+            val config = AndroidStorageConfig.from(options)
+            if (
+                config.enforceBiometrics &&
+                call.method !in AUTHENTICATION_QUERY_METHODS &&
+                !isAuthenticationFresh(options, config)
+            ) {
+                secureStorage = null
+                secureStorageOptions = null
+                enqueueAuthentication(call, result, options, config)
+                return
+            }
+
+            handleMethodCall(call, result, arguments, options, config)
         } catch (exception: Exception) {
             val stackTrace = StringWriter().also {
                 exception.printStackTrace(PrintWriter(it))
@@ -62,14 +92,21 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
         }
     }
 
-    private fun handleMethodCall(call: MethodCall, result: Result) {
-        val arguments = call.arguments.asStringAnyMap().takeIf { call.arguments != null }
-        if (arguments == null) {
-            result.error("InvalidArgument", "No arguments passed to method call", null)
+    private fun handleMethodCall(
+        call: MethodCall,
+        result: Result,
+        arguments: Map<String, Any?>,
+        options: Map<String, Any?>,
+        config: AndroidStorageConfig,
+    ) {
+        if (call.method == "isBiometricAvailable") {
+            result.success(authenticator.isAvailable(config))
             return
         }
-
-        val options = arguments["options"].asStringAnyMap()
+        if (call.method == "isDeviceSecure") {
+            result.success(authenticator.isDeviceSecure())
+            return
+        }
         if (!initSecureStorage(result, options)) return
 
         when (call.method) {
@@ -87,6 +124,93 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
             }
             else -> result.notImplemented()
         }
+    }
+
+    private fun enqueueAuthentication(
+        call: MethodCall,
+        result: Result,
+        options: Map<String, Any?>,
+        config: AndroidStorageConfig,
+    ) {
+        val pendingOptions = pendingAuthenticationOptions
+        if (pendingOptions != null) {
+            if (pendingOptions == options) {
+                pendingAuthenticationCalls += PendingMethodCall(call, result)
+            } else {
+                result.error(
+                    "AuthenticationInProgress",
+                    "Authentication is already in progress for another storage namespace.",
+                    null,
+                )
+            }
+            return
+        }
+
+        pendingAuthenticationOptions = options
+        pendingAuthenticationCalls += PendingMethodCall(call, result)
+        authenticator.authenticate(
+            config = config,
+            onSuccess = {
+                val handler = workerThreadHandler
+                if (handler == null) {
+                    drainPendingAuthenticationCalls().forEach {
+                        it.result.error(
+                            "Unavailable",
+                            "Worker thread is not available after authentication",
+                            null,
+                        )
+                    }
+                } else {
+                    handler.post {
+                        authenticatedOptions = options
+                        authenticatedAtElapsedRealtime = SystemClock.elapsedRealtime()
+                        val pendingCalls = drainPendingAuthenticationCalls()
+                        pendingCalls.forEach {
+                            handleMethodCallSafely(it.call, it.result)
+                        }
+                    }
+                }
+            },
+            onError = { exception ->
+                val handler = workerThreadHandler
+                if (handler == null) {
+                    drainPendingAuthenticationCalls().forEach {
+                        it.result.error(
+                            "AuthenticationFailed",
+                            exception.message,
+                            exception.toString(),
+                        )
+                    }
+                } else {
+                    handler.post {
+                        drainPendingAuthenticationCalls().forEach {
+                            it.result.error(
+                                "AuthenticationFailed",
+                                exception.message,
+                                exception.toString(),
+                            )
+                        }
+                    }
+                }
+            },
+        )
+    }
+
+    private fun isAuthenticationFresh(
+        options: Map<String, Any?>,
+        config: AndroidStorageConfig,
+    ): Boolean {
+        if (authenticatedOptions != options) return false
+        val validityMillis =
+            config.userAuthenticationValidityDurationSeconds * 1000L
+        return SystemClock.elapsedRealtime() - authenticatedAtElapsedRealtime < validityMillis
+    }
+
+    private fun drainPendingAuthenticationCalls(): List<PendingMethodCall> {
+        val calls = pendingAuthenticationCalls.toList()
+        pendingAuthenticationCalls.clear()
+        pendingAuthenticationOptions = null
+        return calls
     }
 
     private fun initSecureStorage(result: Result, options: Map<String, Any?>): Boolean {
@@ -126,6 +250,13 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
     private val storage: FlutterSecureStorage
         get() = checkNotNull(secureStorage) { "Secure storage has not been initialized." }
 
+    private val authenticator: BiometricAuthenticator
+        get() = BiometricAuthenticator(
+            checkNotNull(binding?.applicationContext) {
+                "Plugin is not attached to an engine."
+            },
+        )
+
     private fun Any?.asStringAnyMap(): Map<String, Any?> {
         val map = this as? Map<*, *> ?: return emptyMap()
         return map.entries
@@ -149,8 +280,17 @@ class FlutterSecureStoragePlugin : MethodCallHandler, FlutterPlugin {
         }
     }
 
+    private data class PendingMethodCall(
+        val call: MethodCall,
+        val result: Result,
+    )
+
     private companion object {
         const val CHANNEL_NAME = "plugins.it_nomads.com/flutter_secure_storage"
         const val WORKER_THREAD_NAME = "fluttersecurestorage.worker"
+        val AUTHENTICATION_QUERY_METHODS = setOf(
+            "isBiometricAvailable",
+            "isDeviceSecure",
+        )
     }
 }
