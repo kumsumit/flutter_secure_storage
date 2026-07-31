@@ -1,7 +1,7 @@
 name: flutter_secure_storage
 description: A Flutter plugin for securely storing sensitive data using encrypted storage.
 publish_to: none
-version: 10.0.0-beta.6
+version: 11.0.0-beta.1
 repository: https://github.com/mogol/flutter_secure_storage/tree/develop/flutter_secure_storage
 
 environment:
@@ -32,17 +32,17 @@ dependencies:
   # implementation constraints as "any". We cannot do it right now as it fails pub publish
   # validation, so we set a ^ constraint.
   # https://github.com/flutter/flutter/issues/46264
-  flutter_secure_storage_linux:
-    git: https://github.com/kumsumit/flutter_secure_storage_linux.git
   flutter_secure_storage_darwin:
     git: https://github.com/kumsumit/flutter_secure_storage_darwin.git
+  flutter_secure_storage_linux:
+    git: https://github.com/kumsumit/flutter_secure_storage_linux.git
   flutter_secure_storage_platform_interface:
     git: https://github.com/kumsumit/flutter_secure_storage_platform_interface.git
   flutter_secure_storage_web:
     git: https://github.com/kumsumit/flutter_secure_storage_web.git
   flutter_secure_storage_windows:
     git: https://github.com/kumsumit/flutter_secure_storage_windows.git
-  meta: ^1.17.0
+  meta: ^1.19.0
 
 dev_dependencies:
   flutter_test:
@@ -50,7 +50,7 @@ dev_dependencies:
   mocktail: ^1.0.5
   plugin_platform_interface:
     git: https://github.com/kumsumit/plugin_platform_interface.git
-  very_good_analysis: ^10.2.0
+  very_good_analysis: ^10.0.0
 
 # We need to manually declare supported platforms, because pub.dev won't find them.
 platforms:

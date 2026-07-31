@@ -1,15 +1,215 @@
-## 10.0.0-beta.6
-* [Android] Added `AndroidOptions.keystoreAlias` to use a custom Android Keystore master-key alias, isolating a store's master key from the shared default. Required to apply `userAuthenticationRequired` to a single store without gating the app's other secure storage.
+## 11.0.0-beta.1
+
+**Breaking changes**
+
+items deprecated in v10 have been removed.
+Any data saved using deprecated algorithms or features will be unusable after this upgrade. If you used a version prior to v10, upgrade to v10 first so existing data is migrated.
+
+### Android
+
+- Removed `KeyCipherAlgorithm.RSA_ECB_PKCS1Padding`. Upgrade to v10 first so existing data is migrated to `RSA_ECB_OAEPwithSHA_256andMGF1Padding` before upgrading to v11.
+- Removed `StorageCipherAlgorithm.AES_CBC_PKCS7Padding`. Upgrade to v10 first so existing data is migrated to `AES_GCM_NoPadding` before upgrading to v11.
+- Removed `encryptedSharedPreferences` parameter from `AndroidOptions` and `AndroidOptions.biometric`. The Jetpack Security (EncryptedSharedPreferences) backend is no longer supported; any remaining data was automatically migrated to custom cipher storage in v10.
+- Removed `sharedPreferencesName` from `AndroidOptions`. Use `storageNamespace` instead for full namespace isolation.
+- Raised `minSdk` to 24 and `compileSdk` to 37. Flutter 3.35 raised its own Android minimum to API 24, making API 23 support unverifiable with any supported Flutter version. The legacy AES-CBC cipher path that supported API 21-22 has been removed.
+
+## 10.3.1
+
+### Android
+- Fixed `AEADBadTagException` when biometric authentication is cancelled on first launch: a stale IV is now cleared and the cipher re-initialised in encrypt mode so the next authentication attempt succeeds.
+- Fixed `NullPointerException` when retrying an operation after a cancelled biometric prompt: `preferences` is now only assigned once cipher initialisation completes successfully, allowing a clean retry.
+
+## 10.3.0
+
+### Android
+- Added `AndroidBiometricType` enum and `biometricType` option to `AndroidOptions` to control which authentication methods are accepted during biometric prompts (requires `KeyCipherAlgorithm.AES_GCM_NoPadding`).
+  - `AndroidBiometricType.biometricOrDeviceCredential` (default) accepts Class 3 biometrics or device credentials (PIN/pattern/password), preserving previous behaviour.
+  - `AndroidBiometricType.strongBiometricOnly` restricts authentication to Class 3 (strong) biometrics only; device credentials are explicitly rejected.
+- Fully enforced on Android 11+ (API 30+) via `setAllowedAuthenticators` on `BiometricPrompt` and `setUserAuthenticationParameters` on the KeyStore key. On earlier API levels the system may still permit device credentials.
+- Added `biometricPromptNegativeButton` option to `AndroidOptions` to customise the dismiss button label on the biometric prompt. Required when using `strongBiometricOnly` or on Android 10 and lower.
+
+### iOS / macOS
+- Fixed `secStoreAvailabilitySink` not being called when protected data availability changes.
+- Fixed `kSecUseDataProtectionKeychain` being added to Keychain queries unconditionally; it is now only set when `useDataProtectionKeychain` is explicitly enabled.
+
+### Windows
+- Fixed `deleteAll` and `containsKey` not acquiring the mutex lock, which could cause data races under concurrent access.
+  If you are on Dart >=3.10.0, this fix is applied automatically. Otherwise, pin `flutter_secure_storage_windows: ^4.2.2` in your `pubspec.yaml` to opt in and make sure your constraint is set for minimum of Dart >=3.10.0.
+
+### Linux
+- Fixed `deleteKeyring` storing the string `"null"` instead of an empty JSON object `{}`.
+- Fixed non-UTF-8 error messages from libsecret causing a `FormatException` on the Dart side; messages are now sanitised before being sent through the method channel.
+- Fixed locked or unavailable keyring now surfacing as a catchable `PlatformException` with code `KeyringLocked`.
+- Fixed JSON parse errors and other C++ exceptions now surfacing as a `PlatformException` with code `StorageError` instead of sending malformed bytes through the channel.
+## 10.2.0
+
+### Android
+- Deprecated `KeyCipherAlgorithm.RSA_ECB_PKCS1Padding`. Existing data is automatically migrated to the default `RSA_ECB_OAEPwithSHA_256andMGF1Padding` when `migrateOnAlgorithmChange` is true.
+- Deprecated `StorageCipherAlgorithm.AES_CBC_PKCS7Padding`. Existing data is automatically migrated to the default `AES_GCM_NoPadding` when `migrateOnAlgorithmChange` is true.
+- Fixed Gradle space-assignment warnings in `build.gradle`.
+
+### iOS / macOS
+- Fixed iOS build by updating availability annotation for Secure Enclave methods from `iOS 11.3` to `iOS 13.0`.
+
+### Windows
+- Fixed compatibility with `win32` 6.0.0 in `flutter_secure_storage_windows 4.2.0`.
+  If you are on Dart >=3.10.0, this fix is applied automatically. Otherwise, pin `flutter_secure_storage_windows: ^4.2.0` in your `pubspec.yaml` to opt in and make sure your constraint is set for minimum of Dart >=3.10.0.
+
+## 10.1.0
+
+### Windows
+- Updated `flutter_secure_storage_windows` to 4.2.0 with compatibility fixes for `win32` 6.0.0.
+
+### Android
+- Added `storageNamespace` option to `AndroidOptions` for full namespace isolation across storage instances (SharedPreferences, KeyStore aliases, config/key storage). Use this instead of `sharedPreferencesName` when running multiple `FlutterSecureStorage` instances with different cipher configurations.
+- Deprecated `sharedPreferencesName` in favor of `storageNamespace`, which provides complete isolation rather than data-only isolation.
+- Added `migrateWithBackup` option to `AndroidOptions` for crash-resistant migration. When enabled, backup copies of encrypted data are created before migration starts, allowing recovery if migration fails or the app crashes mid-migration. Works in conjunction with `migrateOnAlgorithmChange`.
+- Made `KeyCipherAlgorithm` and `StorageCipherAlgorithm` public enums.
+
+**Fixes:**
+- Fixed crash on biometric failure (not error).
+- Fixed null safety issue in `MethodRunner` that could cause a crash on Android.
+- Fixed config being overwritten on initialization.
+- Fixed default Android key cipher not aligning with the Flutter default.
+
+### iOS / macOS
+- Added `useSecureEnclave` option to `IOSOptions` and `MacOsOptions` to store keys in the device's Secure Enclave for hardware-backed security.
+
+**Fixes:**
+- Fixed `kSecAttrSynchronizable` being silently dropped when no access control flags are set.
+- Fixed `readAll` not returning Secure Enclave items correctly.
+
+## 10.0.0
+This major release brings significant security improvements, platform updates, and modernization across all supported platforms.
+
+### Android
+Due to the deprecation of Jetpack Security library, the Android implementation has been largely rewritten with custom secure ciphers, enhanced biometrics support, and migration tools.
+
+**Breaking Changes:**
+- `AndroidOptions().encryptedSharedPreferences` is now deprecated due to Jetpack Crypto package deprecation
+  - Migration will automatically happen due to `migrateOnAlgorithmChange: true`, which can also be set to false if not wanted.
+- ResetOnError will now automatically be true, because most errors are unrecoverable due to key storage problems. It can still be disabled with `resetOnError: false`
+- Default key cipher changed to `RSA_ECB_OAEPwithSHA_256andMGF1Padding`
+- Default storage cipher changed to `AES_GCM_NoPadding`
+- Minimum Android SDK changed from 19 to 23
+- Target SDK updated to 36
+- Migrated from deprecated Jetpack Crypto library to custom cipher implementation (Tink doesn't support biometrics)
+- Migrated to Java Version 17
+
+**New Features:**
+- New named constructors: `AndroidOptions()`, `AndroidOptions.biometric()`
+- `AndroidOptions().migrateOnAlgorithmChange` automatically migrates data to new ciphers when enabled
+- Improved biometric authentication with graceful degradation when device has no security setup
+- Migration tools for transitioning from deprecated encryptedSharedPreferences
+- Enhanced error handling with proper exception messages for biometric unavailability
+
+**Fixes:**
+- Fixed biometric authentication on devices without security (PIN/pattern/password) - now gracefully degrades when `enforceBiometrics=false`
+- Fixed storage cipher and key cipher pairing validation
+- Fixed migration checks for encrypted shared preferences
+- Fixed biometric permission handling
+- Fixed exception when reading data after boot
+
+**Other Changes:**
+- Updated Gradle, Kotlin, and Tink dependencies
+- Refactored custom cipher implementations for better maintainability
+- Added delete key functions for proper reset handling
+- Migrated to new analyzer and code cleanup
+
+### iOS / macOS (darwin)
+- Merged iOS and macOS implementations into unified `flutter_secure_storage_darwin` package
+- Added support for Swift Package Manager
+- Remove keys regardless of synchronizable state or accessibility constraints
+- Change minimum iOS version from 9 to 12
+- Change minimum macOS version to 10.14
+- Use serial queue for execution of keychain operations
+- Added privacy manifest
+- Refactored code and added missing options to IOSOptions and MacOSOptions
+- Fixed warnings with Privacy Manifest
+- Fixed delete and deleteAll when synchronizable is set
+- Fixed migration when value is saved while key already exists with different accessibility option
+- Use accessibility option for all operations
+- Migrated to new analyzer and code cleanup
+
+### Web
+- Web is now compatible with WASM
+- Updated code style and migrated to very_good_analysis
+- Add check for secure context (operations only allowed with secure context)
+- Remove dart:io to support WASM build
+- Migrated away from `html` to `web` package
+- Removed `js` in favor of using js-interop
+- Added `useSessionStorage` parameter to WebOptions for saving in session storage instead of local storage
+- Updated web dependency support to <2.0.0
+- Migrated to new analyzer and code cleanup
+
+### Windows
+- Upgrades deprecated member usage of win32
+- Migrated to `win32` version 5.5.4 to support Dart 3.4 / Flutter 3.22.0
+- Migrated to new analyzer and code cleanup
+- Write encrypted data to files instead of the Windows credential system
+
+### Linux
+- Fixed whitespace deprecation warning
+- Reverted json.dump with indentations due to problems
+- Fixed search with schemas fails in cold keyrings
+- Fixed erase called on null
+- Fixed memory management issue
+- Remove and replace libjsoncpp1 dependency
+- Migrated to new analyzer and code cleanup
+
+### Platform Interface
+- Remove dart:io to support WASM build of web
+- Migrated to new analyzer and code cleanup
+
+### General Improvements
+- Listener functionality via `FlutterSecureStorage().registerListener()`
+- All platforms updated to support Dart SDK <4.0.0
+- Comprehensive test coverage improvements
+- Documentation updates across all platforms
 
 ## 10.0.0-beta.5
-* [Android] Added `AndroidOptions.userAuthenticationRequired` (with `userAuthenticationValidityDurationSeconds`) to create the master key with `setUserAuthenticationRequired(true)`, so the Keystore hardware refuses to use the key unless the user authenticated (strong biometric / device credential) within the validity window.
+Due to security issues regarding the handling of biometrics in v10.0.0-beta.4, together with the deprecation
+of Jetpack Security library, it took me some time to find a secure alternative. My apologies for the delay.
+
+The Android part has been largely rewritten, reintroducing the customer cipher construction from before,
+but with secure ciphers, biometrics support, updated default ciphers and migration tools.
+
+**Breaking Changes:**
+- `AndroidOptions().encryptedSharedPreferences` is now deprecated due to Jetpack Crypto package being deprecated
+  For now you can still use deprecated encryptedSharedPreferences by setting `encryptedSharedPreferences: true`
+  and `migrateOnAlgorithmChange: false`. If `encryptedSharedPreferences` is `true` and `migrateOnAlgorithmChange`
+  is `true`, data will be automatically migrated to the new cipher, and encryptedSharedPreferences
+  cannot be used anymore.
+- Google recommends using Tink library, but Tink does not support biometrics, so custom ciphers have been reintroduced
+- Default key cipher changed to `RSA_ECB_OAEPwithSHA_256andMGF1Padding`
+- Default storage cipher changed to `AES_GCM_NoPadding`
+
+**New Features:**
+- New named constructors: `AndroidOptions()`, `AndroidOptions.biometric()`
+- `AndroidOptions().migrateOnAlgorithmChange` automatically migrates data to new ciphers when enabled
+- Improved biometric authentication with graceful degradation when device has no security setup
+- Migration tools for transitioning from deprecated encryptedSharedPreferences
+- Enhanced error handling with proper exception messages for biometric unavailability
+
+**Key Fixes:**
+- Fixed biometric authentication on devices without security (PIN/pattern/password) - now gracefully degrades when `enforceBiometrics=false`
+- Fixed storage cipher and key cipher pairing validation
+- Fixed migration checks for encrypted shared preferences
+- Fixed biometric permission handling
+- Fixed default `resetOnError` behavior (now defaults to `true`)
+
+**Other Changes:**
+- Target SDK 36
+- Updated Gradle, Kotlin, and Tink dependencies
+- Updated minimum SDK according to Flutter requirements
+- Refactored custom cipher implementations for better maintainability
+- Added delete key functions for proper reset handling
 
 ## 10.0.0-beta.4
 * [Apple] Merged ios and macos implementation into a new package flutter_secure_storage_darwin
 * [Apple] Refactored code and added missing options
 * [Apple] Added support for swift package manager
 * [Web] Update flutter_secure_storage_platform_interface to be compatible with WASM.
-* [Android] Added automatic StrongBox-backed master-key creation with Android Keystore fallback.
 
 ## 10.0.0-beta.3
 * [iOS] Fix delete and deleteAll when synchronizable is set.

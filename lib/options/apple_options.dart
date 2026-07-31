@@ -82,6 +82,7 @@ abstract class AppleOptions extends Options {
     this.shouldReturnPersistentReference,
     this.authenticationUIBehavior,
     this.accessControlFlags = const [],
+    this.useSecureEnclave = false,
   });
 
   /// The default account name associated with the keychain items.
@@ -186,27 +187,42 @@ abstract class AppleOptions extends Options {
   ///
   final List<AccessControlFlag> accessControlFlags;
 
+  /// When true, opts into Secure Enclave–backed protection on iOS/macOS.
+  ///
+  /// Behavior:
+  /// - Data is encrypted with a per-item AES key that is wrapped by an
+  ///   Enclave-backed private key. Access is gated by [accessControlFlags]
+  ///   (e.g. Face ID/Touch ID/passcode via `userPresence`).
+  /// - If the device or simulator does not support Secure Enclave or unwrap
+  ///   fails, the plugin gracefully falls back to standard Keychain storage
+  ///   using your configured [accessControlFlags].
+  /// - iCloud Keychain sync (synchronizable) is ignored when using Enclave
+  ///   since keys are device-bound.
+  final bool useSecureEnclave;
+
   @override
   Map<String, String> toMap() => <String, String>{
-        'accountName': ?accountName,
-        'groupId': ?groupId,
-        if (accessibility != null) 'accessibility': accessibility!.name,
-        'label': ?label,
-        'description': ?description,
-        'comment': ?comment,
-        'synchronizable': '$synchronizable',
-        if (isInvisible != null) 'isInvisible': '$isInvisible',
-        if (isNegative != null) 'isNegative': '$isNegative',
-        if (creationDate != null)
-          'creationDate': creationDate!.toIso8601String(),
-        if (lastModifiedDate != null)
-          'lastModifiedDate': lastModifiedDate!.toIso8601String(),
-        if (resultLimit != null) 'resultLimit': resultLimit!.toString(),
-        if (shouldReturnPersistentReference != null)
-          'shouldReturnPersistentReference': '$shouldReturnPersistentReference',
-        'authenticationUIBehavior': ?authenticationUIBehavior,
-        if (accessControlFlags.isNotEmpty)
-          'accessControlFlags':
-              accessControlFlags.map((e) => e.name).toList().toString(),
-      };
+    'accountName': ?accountName,
+    'groupId': ?groupId,
+    if (accessibility != null) 'accessibility': accessibility!.name,
+    'label': ?label,
+    'description': ?description,
+    'comment': ?comment,
+    'synchronizable': '$synchronizable',
+    if (isInvisible != null) 'isInvisible': '$isInvisible',
+    if (isNegative != null) 'isNegative': '$isNegative',
+    if (creationDate != null) 'creationDate': creationDate!.toIso8601String(),
+    if (lastModifiedDate != null)
+      'lastModifiedDate': lastModifiedDate!.toIso8601String(),
+    if (resultLimit != null) 'resultLimit': resultLimit!.toString(),
+    if (shouldReturnPersistentReference != null)
+      'shouldReturnPersistentReference': '$shouldReturnPersistentReference',
+    'authenticationUIBehavior': ?authenticationUIBehavior,
+    if (accessControlFlags.isNotEmpty)
+      'accessControlFlags': accessControlFlags
+          .map((e) => e.name)
+          .toList()
+          .toString(),
+    'useSecureEnclave': '$useSecureEnclave',
+  };
 }

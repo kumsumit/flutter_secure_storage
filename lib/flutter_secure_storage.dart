@@ -7,13 +7,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/test/test_flutter_secure_storage_platform.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
 
-part './options/android_options.dart';
-part './options/apple_options.dart';
-part './options/linux_options.dart';
-part './options/web_options.dart';
-part './options/windows_options.dart';
-part './options/ios_options.dart';
-part './options/macos_options.dart';
+part 'options/android_options.dart';
+part 'options/apple_options.dart';
+part 'options/linux_options.dart';
+part 'options/web_options.dart';
+part 'options/windows_options.dart';
+part 'options/ios_options.dart';
+part 'options/macos_options.dart';
 
 final Map<String, List<ValueChanged<String?>>> _listeners = {};
 
@@ -190,18 +190,17 @@ class FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) =>
-      _platform.read(
-        key: key,
-        options: _selectOptions(
-          iOptions,
-          aOptions,
-          lOptions,
-          webOptions,
-          mOptions,
-          wOptions,
-        ),
-      );
+  }) => _platform.read(
+    key: key,
+    options: _selectOptions(
+      iOptions,
+      aOptions,
+      lOptions,
+      webOptions,
+      mOptions,
+      wOptions,
+    ),
+  );
 
   /// Returns true if the storage contains the given [key].
   ///
@@ -221,18 +220,17 @@ class FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) =>
-      _platform.containsKey(
-        key: key,
-        options: _selectOptions(
-          iOptions,
-          aOptions,
-          lOptions,
-          webOptions,
-          mOptions,
-          wOptions,
-        ),
-      );
+  }) => _platform.containsKey(
+    key: key,
+    options: _selectOptions(
+      iOptions,
+      aOptions,
+      lOptions,
+      webOptions,
+      mOptions,
+      wOptions,
+    ),
+  );
 
   /// Deletes associated value for the given [key].
   ///
@@ -297,17 +295,16 @@ class FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) =>
-      _platform.readAll(
-        options: _selectOptions(
-          iOptions,
-          aOptions,
-          lOptions,
-          webOptions,
-          mOptions,
-          wOptions,
-        ),
-      );
+  }) => _platform.readAll(
+    options: _selectOptions(
+      iOptions,
+      aOptions,
+      lOptions,
+      webOptions,
+      mOptions,
+      wOptions,
+    ),
+  );
 
   /// Deletes all keys with associated values.
   ///
@@ -375,9 +372,9 @@ class FlutterSecureStorage {
   /// On all unsupported platforms returns null
   Stream<bool>? get onCupertinoProtectedDataAvailabilityChanged =>
       _platform is MethodChannelFlutterSecureStorage
-          ? (_platform as MethodChannelFlutterSecureStorage)
-              .onCupertinoProtectedDataAvailabilityChanged
-          : null;
+      ? (_platform as MethodChannelFlutterSecureStorage)
+            .onCupertinoProtectedDataAvailabilityChanged
+      : null;
 
   /// iOS and macOS only feature.
   ///
@@ -388,14 +385,15 @@ class FlutterSecureStorage {
   /// macOS: https://developer.apple.com/documentation/appkit/nsapplication/3752992-isprotecteddataavailable
   Future<bool?> isCupertinoProtectedDataAvailable() async =>
       _platform is MethodChannelFlutterSecureStorage
-          ? await (_platform as MethodChannelFlutterSecureStorage)
-              .isCupertinoProtectedDataAvailable()
-          : null;
+      ? await (_platform as MethodChannelFlutterSecureStorage)
+            .isCupertinoProtectedDataAvailable()
+      : null;
 
   /// Initializes the shared preferences with mock values for testing.
   @visibleForTesting
   static void setMockInitialValues(Map<String, String> values) {
-    FlutterSecureStoragePlatform.instance =
-        TestFlutterSecureStoragePlatform(values);
+    FlutterSecureStoragePlatform.instance = TestFlutterSecureStoragePlatform(
+      values,
+    );
   }
 }

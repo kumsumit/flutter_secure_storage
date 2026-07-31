@@ -22,6 +22,7 @@ class IOSOptions extends AppleOptions {
     super.shouldReturnPersistentReference,
     super.authenticationUIBehavior,
     super.accessControlFlags,
+    super.useSecureEnclave,
   });
 
   /// A predefined `IosOptions` instance with default settings.
@@ -31,6 +32,6 @@ class IOSOptions extends AppleOptions {
 
   @override
   Map<String, String> toMap() => <String, String>{
-        ...super.toMap(),
-      };
+    ...super.toMap(),
+  };
 }
